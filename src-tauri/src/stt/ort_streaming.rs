@@ -776,16 +776,7 @@ fn inference_thread_main(
 
         // Extract Fbank frames from available PCM and accumulate in feature_buffer
         while pcm_buffer.len() >= CHUNK_SAMPLES {
-            let mut chunk: Vec<f32> = pcm_buffer.drain(..CHUNK_SAMPLES).collect();
-            // Adaptive low-mic boost: quiet laptop mic arrays (RMS < 0.025) fall below Fbank sensitivity range.
-            let sum_sq: f32 = chunk.iter().map(|&x| x * x).sum();
-            let rms = (sum_sq / chunk.len().max(1) as f32).sqrt();
-            if rms > 0.001 && rms < 0.025 {
-                let boost = (0.05 / rms).min(4.0);
-                for x in &mut chunk {
-                    *x = (*x * boost).clamp(-1.0, 1.0);
-                }
-            }
+            let chunk: Vec<f32> = pcm_buffer.drain(..CHUNK_SAMPLES).collect();
             let new_frames = fbank.process_chunk(&chunk);
             feature_buffer.extend(new_frames);
         }
