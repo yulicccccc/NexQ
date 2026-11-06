@@ -642,10 +642,9 @@ fn run_windows_speech_recognizer(
                     _ => "Other",
                 };
 
-                // Recoverable statuses: auto-restart instead of giving up
+                // Recoverable statuses: auto-restart only for silence timeouts, NOT user/system cancellations
                 let is_recoverable = matches!(status,
-                    SpeechRecognitionResultStatus::UserCanceled
-                    | SpeechRecognitionResultStatus::TimeoutExceeded
+                    SpeechRecognitionResultStatus::TimeoutExceeded
                     | SpeechRecognitionResultStatus::PauseLimitExceeded
                 );
 
@@ -655,6 +654,10 @@ fn run_windows_speech_recognizer(
                 } else if is_recoverable {
                     log::info!("WindowsNativeSTT: Session ended with {} — will auto-restart", status_name);
                     session_ended_for_handler.store(true, Ordering::SeqCst);
+                } else if status == SpeechRecognitionResultStatus::UserCanceled {
+                    log::warn!("WindowsNativeSTT: Session ended with UserCanceled (Online speech recognition disabled or blocked)");
+                    emit_thread_status(&completed_app_handle, &completed_party, "error",
+                        Some("Windows Speech canceled. If you did not cancel it, ensure 'Online speech recognition' is ON in Windows Settings > Privacy & security > Speech, or switch to a local STT model (Whisper/Parakeet).".to_string()));
                 } else {
                     log::warn!("WindowsNativeSTT: Session Completed with status: {}", status_name);
                     emit_thread_status(&completed_app_handle, &completed_party, "error",

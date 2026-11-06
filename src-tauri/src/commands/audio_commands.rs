@@ -1585,12 +1585,19 @@ async fn create_stt_provider_for_party(
                     Ok(Some(Box::new(p)))
                 }
                 Err(e) => {
-                    log::warn!(
-                        "WhisperCpp: {} — no transcription for this party. \
-                         Download the model in Settings.",
-                        e
+                    let msg = format!(
+                        "WhisperCpp ({}): {} — no model found. Download a model in Settings > Local Models.",
+                        party_role, e
                     );
-                    Ok(None)
+                    log::warn!("{}", msg);
+                    crate::stt::emit_stt_debug(app, "error", "stt", &msg);
+                    let _ = app.emit("stt_connection_status", serde_json::json!({
+                        "provider": "whisper_cpp",
+                        "party": party_role,
+                        "status": "error",
+                        "message": msg
+                    }));
+                    Err(msg.into())
                 }
             }
         }
@@ -1723,9 +1730,15 @@ async fn create_stt_provider_for_party(
                                 Ok(Some(Box::new(p)))
                             }
                             None => {
-                                crate::stt::emit_stt_debug(app, "error", "stt",
-                                    &format!("[{}] {}", party_role, missing_offline_binary(state)));
-                                Ok(None)
+                                let msg = format!("[{}] {}", party_role, missing_offline_binary(state));
+                                crate::stt::emit_stt_debug(app, "error", "stt", &msg);
+                                let _ = app.emit("stt_connection_status", serde_json::json!({
+                                    "provider": "sherpa_onnx",
+                                    "party": party_role,
+                                    "status": "error",
+                                    "message": msg
+                                }));
+                                Err(msg.into())
                             }
                         }
                     } else {
@@ -1740,10 +1753,15 @@ async fn create_stt_provider_for_party(
                     }
                 }
                 Err(e) => {
-                    crate::stt::emit_stt_debug(app, "error", "stt",
-                        &format!("[{}] SherpaOnnx model '{}' not found: {}. Download in Settings.",
-                            party_role, model_id, e));
-                    Ok(None)
+                    let msg = format!("[{}] SherpaOnnx model '{}' not found: {}. Download in Settings.", party_role, model_id, e);
+                    crate::stt::emit_stt_debug(app, "error", "stt", &msg);
+                    let _ = app.emit("stt_connection_status", serde_json::json!({
+                        "provider": "sherpa_onnx",
+                        "party": party_role,
+                        "status": "error",
+                        "message": msg
+                    }));
+                    Err(msg.into())
                 }
             }
         }

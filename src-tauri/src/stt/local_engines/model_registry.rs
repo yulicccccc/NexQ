@@ -259,7 +259,7 @@ pub fn get_engines() -> Vec<EngineInfo> {
         EngineInfo {
             engine: "sherpa_onnx",
             name: "Sherpa-ONNX",
-            description: "Streaming transducer (Zipformer) + SenseVoice via in-process ONNX Runtime. Multilingual. Fully offline, free.",
+            description: "Streaming transducer (Zipformer) via in-process ONNX Runtime. Multilingual. Fully offline, free. (SenseVoice requires external sherpa-onnx-offline.exe binary).",
         },
         EngineInfo {
             engine: "ort_streaming",
