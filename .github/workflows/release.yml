@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -48,7 +49,18 @@ jobs:
           prerelease: false
           uploadUpdaterJson: true
 
+      - name: Upload Windows Executable Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: InterviewCopilot-Windows-x64
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/NexQ.exe
+          if-no-files-found: warn
+
       - name: Verify updater JSON exists
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -109,7 +121,18 @@ jobs:
           prerelease: false
           uploadUpdaterJson: true
 
+      - name: Upload Windows Executable Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: InterviewCopilot-Windows-x64
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/NexQ.exe
+          if-no-files-found: warn
+
       - name: Verify updater JSON exists
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
