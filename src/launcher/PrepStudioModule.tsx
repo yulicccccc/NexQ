@@ -29,6 +29,22 @@ import {
   parseJdMetadata,
   parseResumeFile,
 } from "./documentParser";
+import {
+  analyzeJdDeeply,
+  generateHealerStory,
+  JdDeepAnalysisResult,
+  HealerStoryResult,
+} from "./interviewCourseEngine";
+import {
+  ShieldAlert,
+  ShieldCheck,
+  Flame,
+  HelpCircle,
+  TrendingDown,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 export interface StarQuestionItem {
   id: string;
@@ -42,6 +58,16 @@ export interface StarQuestionItem {
   bullets: [string, string, string];
   keywords: string;
   practicedCount: number;
+  defenseShields?: {
+    vector1_edgeCase: { question: string; counterAnswer: string };
+    vector2_pushback: { question: string; counterAnswer: string };
+    vector3_tradeoff: { question: string; counterAnswer: string };
+  };
+  antiFreeze?: {
+    memoryAnchors: [string, string, string];
+    goldenQuote: string;
+    emergencyPivotPhrase: string;
+  };
 }
 
 export interface PrepProfileData {
@@ -109,6 +135,121 @@ const DEFAULT_PREP_DATA: PrepProfileData = {
   ],
 };
 
+
+
+const VERIFIED_STORY_TEMPLATES: { name: string; question: string; story: HealerStoryResult }[] = [
+  {
+    name: "MS Check 自动化校验 (Pilot)",
+    question: "Tell me about a high-stakes disagreement with leadership on whether to redesign a workflow.",
+    story: {
+      question: "Tell me about a high-stakes disagreement with leadership on whether to redesign a workflow.",
+      hook: "We agreed that the quality check mattered. What we disagreed on was whether the cumulative cost and risk justified a system-level redesign.",
+      emergency: "Routine Method-Suitability checks were manual and fragmented across separate LIMS screens. Multiple functions repeated the same check, but repetition didn't equal independent control—it increased cognitive fatigue and risk exposure.",
+      approach: "Instead of arguing abstractly, I didn't push for an immediate mandate. I built an interactive triangulation verification prototype in Excel, mapped error pathways, and proved the concept in a zero-risk sandbox.",
+      launch: "I formally presented the data to our QA Director, demonstrating how automated triangulation eliminated human comparison error while preserving manual sign-off for edge cases, then launched a controlled pilot.",
+      effect: "Cut verification cycle time by over 50%, completely eliminated cross-system discrepancy backlog, and earned director praise as a scalable quality blueprint.",
+      reflection: "Personal expertise only truly scales when you turn it into a repeatable system that elevates the entire organization.",
+      teleprompterBullets: [
+        "Context: Manual LIMS suitability verification was fragmented and repetitive.",
+        "Action: Built automated triangulation prototype & led pilot presentation.",
+        "Outcome: 50%+ faster review, zero discrepancy backlog, praised by Director.",
+      ],
+      defenseShields: {
+        vector1_edgeCase: {
+          question: "What if a legacy product has non-standard suitability requirements?",
+          counterAnswer: "We built explicit fallback flags: any legacy record missing standard tags is flagged for rapid manual sign-off without interrupting automated batches."
+        },
+        vector2_pushback: {
+          question: "How did you handle the supervisor's initial hesitation that multiple people already checked it?",
+          counterAnswer: "I showed empirical data: three tired reviewers comparing 7 parameters across 4 tabs still let subtle mismatches slip through. Automation provides absolute consistency."
+        },
+        vector3_tradeoff: {
+          question: "Did building this tool distract you from daily sample throughput?",
+          counterAnswer: "I time-boxed prototyping to 45 minutes before morning peak volume, using the first wave of time savings to fund the remaining validation."
+        }
+      },
+      antiFreeze: {
+        memoryAnchors: ["Fragmented LIMS Check", "Triangulation Prototype", "50%+ Time Cut"],
+        goldenQuote: "Repetition is not independent control; triangulation builds true trust.",
+        emergencyPivotPhrase: "The turning point was moving from verbal debate to a concrete working prototype."
+      }
+    }
+  },
+  {
+    name: "48-Slot 视觉防呆托盘 (0 漏样)",
+    question: "Describe a time your initial solution failed or received critical feedback. How did you adapt?",
+    story: {
+      question: "Describe a time your initial solution failed or received critical feedback. How did you adapt?",
+      hook: "Early on, I learned that a process control that looks perfect on paper often fails when it clashes with the physical floor reality.",
+      emergency: "In our high-volume testing line (~45 samples/batch), missing or misplaced samples occurred roughly once every two weeks, risking turnaround delays.",
+      approach: "My first solution was a detailed paper checklist, but analysts gave frank feedback that it slowed them down and added paperwork without stopping errors. I accepted the critique and observed their physical hand movements.",
+      launch: "I partnered with a 3D-modeling colleague to co-design an ergonomic 48-slot visual grid tray (45 active samples + 1 blank + 2 controls). One missing slot immediately created an unmissable visual gap.",
+      effect: "Zero missing or misplaced samples observed across the first two months, with 100% enthusiastic daily adoption from the analyst team.",
+      reflection: "When human error occurs repeatedly, redesign the physical architecture to make compliance natural—never blame the operator.",
+      teleprompterBullets: [
+        "Mistake: Initial paper checklist added burden without preventing misplacement.",
+        "Pivot: Accepted analyst critique; co-designed 48-slot visual grid tray.",
+        "Result: 0 missing samples in 60 days; physical ergonomics beat paper checklists.",
+      ],
+      defenseShields: {
+        vector1_edgeCase: {
+          question: "What if batch volume exceeded 45 samples during rush periods?",
+          counterAnswer: "We serialized trays into A/B modular blocks with color-coded tags, preserving instant visual accountability across split batches."
+        },
+        vector2_pushback: {
+          question: "Did analysts resist changing how they placed tubes on the bench?",
+          counterAnswer: "Because we designed the tray around their natural left-to-right hand reach, analysts found it faster than their old habits on Day 1."
+        },
+        vector3_tradeoff: {
+          question: "Was 3D printing trays compliant with cleanroom sanitization standards?",
+          counterAnswer: "We selected autoclavable and isopropyl-resistant resin, validating surface sanitization before placing trays into active production."
+        }
+      },
+      antiFreeze: {
+        memoryAnchors: ["Paper Checklist Flaw", "48-Slot Visual Tray", "Zero Missing Samples"],
+        goldenQuote: "When human error recurs, fix the ergonomic layout—never blame the operator.",
+        emergencyPivotPhrase: "The breakthrough happened when I stopped defending my checklist and watched how analysts actually moved their hands."
+      }
+    }
+  },
+  {
+    name: "实验室排班重构 (Demand × Proficiency × Strength)",
+    question: "Tell me about a time you demonstrated leadership without formal authority to resolve team burnout.",
+    story: {
+      question: "Tell me about a time you demonstrated leadership without formal authority to resolve team burnout.",
+      hook: "The laboratory had simply outgrown its old staffing model, creating silent training and demand mismatches.",
+      emergency: "Rapid volume growth under an old rigid rotation schedule caused three locked mismatches: junior staff felt thrown into deep water, experienced analysts carried hidden burdens, and peak-rush turnaround was jeopardized.",
+      approach: "I didn't request a blanket headcount increase. Instead, I combined sample-volume forecasting with qualification matrices and 1-on-1 conversations on individual technical strengths.",
+      launch: "I presented a dynamic 'Demand × Proficiency × Strength' staffing framework to our Director: establishing stable primary task ownership, agile backup cross-training, and paired mentoring.",
+      effect: "Substantially smoothed turnaround during peak seasons, eliminated shift friction, and the Director recommended using the model across broader departments.",
+      reflection: "Leadership without authority is about illuminating shared friction with clear data and offering an operational design that makes everyone's day easier.",
+      teleprompterBullets: [
+        "Challenge: Rapid growth broke rigid rotation, causing burnout and SLA risk.",
+        "Strategy: Mapped volume forecasts against Demand × Proficiency × Strength.",
+        "Outcome: Eliminated peak-season bottlenecks & adopted by lab leadership.",
+      ],
+      defenseShields: {
+        vector1_edgeCase: {
+          question: "What if an analyst refused to cross-train into a new testing domain?",
+          counterAnswer: "We paired cross-training with a buddy system on lower-volume days, so they never felt isolated or held accountable for initial learning hiccups."
+        },
+        vector2_pushback: {
+          question: "How did you present this to senior peers without sounding like you were telling them how to work?",
+          counterAnswer: "I framed it entirely around solving their top headache: eliminating unexpected emergency coverage calls by building reliable backup depth."
+        },
+        vector3_tradeoff: {
+          question: "Did pairing analysts temporarily lower single-day throughput?",
+          counterAnswer: "Yes, by about 10% for two weeks, but it permanently prevented multi-day turnaround freezes caused by single-point personnel dependencies."
+        }
+      },
+      antiFreeze: {
+        memoryAnchors: ["Outgrown Rotation", "Demand × Proficiency Matrix", "Sustainable Throughput"],
+        goldenQuote: "Leadership without authority means solving shared pain with clear operational data.",
+        emergencyPivotPhrase: "I focused entirely on removing single-point dependencies rather than pointing fingers at scheduling gaps."
+      }
+    }
+  }
+];
 
 const SAMPLE_JDS = [
   {
@@ -222,6 +363,131 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [detectedSkills, setDetectedSkills] = useState<string[]>([]);
   const [sampleJdIndex, setSampleJdIndex] = useState(0);
+  const [jdDeepAnalysis, setJdDeepAnalysis] = useState<JdDeepAnalysisResult | null>(null);
+  const [showPsycheDrawer, setShowPsycheDrawer] = useState(true);
+  const [showDefenseShields, setShowDefenseShields] = useState(true);
+  const [showAntiFreeze, setShowAntiFreeze] = useState(true);
+
+  // ── Auto-analyze JD on load or JD change ──
+  useEffect(() => {
+    if (prepData.jdText.trim().length > 30) {
+      const res = analyzeJdDeeply(prepData.jdText, prepData.company, prepData.roleTitle);
+      setJdDeepAnalysis(res);
+    }
+  }, [prepData.jdText, prepData.company, prepData.roleTitle]);
+
+  // ── Engine 1: JD 转面试问题 (一键生成全套押题) ──
+  const handleGenerateFullJdQuestionSet = useCallback(() => {
+    const analysis = analyzeJdDeeply(prepData.jdText, prepData.company, prepData.roleTitle);
+    setJdDeepAnalysis(analysis);
+
+    const newQuestions: StarQuestionItem[] = [];
+
+    // 1. Common Core (必考通用)
+    analysis.questions.commonQuestions.forEach((q, idx) => {
+      newQuestions.push({
+        id: `q_common_${Date.now()}_${idx}`,
+        category: "behavioral",
+        question: q,
+        situation: "Facing mission-critical delivery targets with limited timeline.",
+        task: "Ensure high SLA reliability and align stakeholders.",
+        action: "Executed phased rollout, profiled dependencies, and communicated transparently.",
+        result: "Delivered 50%+ measurable improvement with zero production regressions.",
+        opener: `Let me share a concrete example that illustrates my approach to this.`,
+        bullets: [
+          "Situation: High-stakes delivery under strict production SLA.",
+          "Action: Targeted bottleneck fix & aligned cross-functional partners.",
+          "Result: 50%+ cycle time reduction with zero defect escapes.",
+        ],
+        keywords: "Systemic Execution · Cross-functional Alignment",
+        practicedCount: 0,
+      });
+    });
+
+    // 2. Role Specific Deep-Dives (岗位定制深挖)
+    analysis.questions.roleSpecificQuestions.forEach((q, idx) => {
+      newQuestions.push({
+        id: `q_role_${Date.now()}_${idx}`,
+        category: "jd_custom",
+        question: q,
+        situation: `At ${prepData.company}, handling scaling bottlenecks under high throughput is paramount.`,
+        task: "Architect an automated and resilient workflow eliminating manual choke-points.",
+        action: "Designed automated verification and streaming pipeline with robust failure domains.",
+        result: "Slashed latency/turnaround by over 50% across peak volume.",
+        opener: `In my previous work, I spearheaded this exact challenge by building a scalable automated pipeline.`,
+        bullets: [
+          `Context: High-volume workload required robust architectural controls.`,
+          `Action: Implemented automated verification & standardized SOPs.`,
+          `Impact: 50%+ throughput gain with complete audit agreement.`,
+        ],
+        keywords: `${analysis.competencies[0]?.name || "Problem Solving"} · Scalable Automation`,
+        practicedCount: 0,
+      });
+    });
+
+    // 3. Red Flag Defusal (避坑高危防御)
+    analysis.questions.redFlagQuestions.forEach((q, idx) => {
+      newQuestions.push({
+        id: `q_redflag_${Date.now()}_${idx}`,
+        category: "mistake_book",
+        question: q,
+        situation: "Early in my career, I realized that rigid theoretical controls often clash with floor realities.",
+        task: "Pivot rapidly from defending my initial draft to solving the root ergonomic friction.",
+        action: "Gathered direct stakeholder critique and co-designed an intuitive physical visual tray.",
+        result: "Eliminated recurring errors to zero for 60 consecutive days.",
+        opener: `I believe the greatest strength an engineer can have is knowing when to let go of an initial idea to fit operational reality.`,
+        bullets: [
+          "Defusal: Paper controls fail when they ignore floor human factors.",
+          "Action: Embraced feedback & deployed ergonomic visual accountability.",
+          "Outcome: 0 errors in 60 days; built enduring psychological safety.",
+        ],
+        keywords: "Self-Correction · Systems Thinking · Zero Blame",
+        practicedCount: 0,
+      });
+    });
+
+    setPrepData((prev) => ({
+      ...prev,
+      questions: [...newQuestions, ...prev.questions],
+    }));
+    setSelectedQId(newQuestions[0]?.id || "");
+    setSubTab("star_bank");
+    showToast(
+      `🎉 已通过「JD转面试问题神器」生成全套 ${newQuestions.length} 道针对性押题并注入题库！`,
+      "success"
+    );
+  }, [prepData.jdText, prepData.company, prepData.roleTitle]);
+
+
+
+  // ── Load Real Story Bank Preset ──
+  const handleLoadRealStory = useCallback((templateIndex: number) => {
+    const item = VERIFIED_STORY_TEMPLATES[templateIndex];
+    if (!item) return;
+
+    const newQ: StarQuestionItem = {
+      id: `q_verified_${Date.now()}`,
+      category: "behavioral",
+      question: item.question,
+      opener: item.story.hook,
+      situation: item.story.emergency,
+      task: item.story.approach,
+      action: item.story.launch,
+      result: item.story.effect,
+      bullets: item.story.teleprompterBullets,
+      keywords: item.story.antiFreeze.memoryAnchors.join(" · "),
+      practicedCount: 1,
+      defenseShields: item.story.defenseShields,
+      antiFreeze: item.story.antiFreeze,
+    };
+
+    setPrepData((prev) => ({
+      ...prev,
+      questions: [newQ, ...prev.questions],
+    }));
+    setSelectedQId(newQ.id);
+    showToast(`已载入经过实战验证的经典故事：${item.name}`, "info");
+  }, []);
 
   // ── Auto-Parse JD on demand or on paste ──
   const handleParseJd = useCallback(
@@ -477,6 +743,32 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
     },
     [selectedQuestion]
   );
+
+  // ── Engine 2: 面试故事 Generator (HEALER 6-Step Story Architect) ──
+  const handleGenerateHealerStoryForCurrent = useCallback(() => {
+    if (!selectedQuestion) return;
+    const healer = generateHealerStory(
+      selectedQuestion.question,
+      prepData.resumeText,
+      prepData.company,
+      prepData.roleTitle,
+      selectedQuestion.category
+    );
+
+    updateSelectedQuestion({
+      opener: healer.hook,
+      situation: healer.emergency,
+      task: healer.approach,
+      action: healer.launch,
+      result: healer.effect,
+      bullets: healer.teleprompterBullets,
+      keywords: `${healer.antiFreeze.memoryAnchors.join(" · ")}`,
+      defenseShields: healer.defenseShields,
+      antiFreeze: healer.antiFreeze,
+    });
+
+    showToast("✨ 已通过「面试故事 Generator」生成 HEALER 黄金小抄、3-Vector 防守盾与防卡壳卡！", "success");
+  }, [selectedQuestion, prepData.resumeText, prepData.company, prepData.roleTitle, updateSelectedQuestion]);
 
   const handleAutoBuildThreeBullets = useCallback(() => {
     if (!selectedQuestion) return;
@@ -850,13 +1142,19 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
             </div>
           </div>
 
-          {/* Right: Instant ATS Match & Question Generator */}
-          <div className="lg:col-span-5 flex flex-col justify-between space-y-3 rounded-xl border border-border/30 bg-card/30 p-4">
-            <div className="space-y-3">
+          {/* Right: Jonathan's JD Analyzer & Hiring Manager Psyche */}
+          <div className="lg:col-span-5 flex flex-col space-y-3 rounded-xl border border-border/30 bg-card/30 p-4 max-h-[640px] overflow-y-auto">
+            {/* Top: Match Radar */}
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  📊 简历 × JD 关键词雷达
-                </h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    📊 简历 × JD 关键词雷达
+                  </h3>
+                  <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
+                    Jonathan JD分析神器
+                  </span>
+                </div>
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
                     jdAnalysis.score >= 70
@@ -869,12 +1167,12 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
               </div>
 
               <div>
-                <div className="text-meta font-semibold text-success mb-1.5">
-                  🟢 简历已命中优势词 ({jdAnalysis.matched.length}) — 面试重点展开：
+                <div className="text-meta font-semibold text-success mb-1">
+                  🟢 简历优势词 ({jdAnalysis.matched.length}) — 面试重点展开：
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {jdAnalysis.matched.length > 0 ? (
-                    jdAnalysis.matched.map((w) => (
+                    jdAnalysis.matched.slice(0, 10).map((w) => (
                       <span
                         key={w}
                         className="rounded-md border border-success/30 bg-success/10 px-2 py-0.5 text-meta font-medium text-success"
@@ -883,20 +1181,18 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                       </span>
                     ))
                   ) : (
-                    <span className="text-meta text-muted-foreground">
-                      暂无重合关键词
-                    </span>
+                    <span className="text-meta text-muted-foreground">暂无重合词</span>
                   )}
                 </div>
               </div>
 
               <div>
-                <div className="text-meta font-semibold text-warning mb-1.5">
-                  🔴 JD 要求但简历未出现 ({jdAnalysis.missing.length}) — 需准备防御话术：
+                <div className="text-meta font-semibold text-warning mb-1">
+                  🔴 JD 需提防缺口词 ({jdAnalysis.missing.length}) — 提前准备防御：
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {jdAnalysis.missing.length > 0 ? (
-                    jdAnalysis.missing.map((w) => (
+                    jdAnalysis.missing.slice(0, 8).map((w) => (
                       <span
                         key={w}
                         className="rounded-md border border-warning/30 bg-warning/10 px-2 py-0.5 text-meta font-medium text-warning"
@@ -905,28 +1201,103 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                       </span>
                     ))
                   ) : (
-                    <span className="text-meta text-success">
-                      太棒了！核心词已全部覆盖！
-                    </span>
+                    <span className="text-meta text-success">太棒了！核心词全部覆盖！</span>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2 pt-2 border-t border-border/20">
+            {/* Hiring Manager Psyche Card */}
+            {jdDeepAnalysis && (
+              <div className="rounded-xl border border-primary/25 bg-background/50 p-3 space-y-2">
+                <div
+                  onClick={() => setShowPsycheDrawer(!showPsycheDrawer)}
+                  className="flex items-center justify-between cursor-pointer"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Flame className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-bold text-foreground">
+                      🎯 招聘经理心理透视 & 核心痛点
+                    </span>
+                  </div>
+                  {showPsycheDrawer ? (
+                    <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </div>
+
+                {showPsycheDrawer && (
+                  <div className="space-y-2 pt-1 text-xs text-muted-foreground">
+                    <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-2 text-foreground">
+                      <span className="font-bold text-destructive text-[11px] block mb-0.5">
+                        🚨 团队当前核心痛点与业务威胁:
+                      </span>
+                      <p className="text-[11px] leading-relaxed">
+                        {jdDeepAnalysis.hiringManager.biggestPainPoint}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg bg-secondary/50 p-2">
+                      <span className="font-semibold text-foreground text-[11px] block mb-0.5">
+                        👥 招聘经理最喜欢和谁共事:
+                      </span>
+                      <p className="text-[11px] leading-relaxed">
+                        {jdDeepAnalysis.hiringManager.whoTheyEnjoyWorkingWith}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg bg-success/10 border border-success/20 p-2 text-foreground">
+                      <span className="font-bold text-success text-[11px] block mb-0.5">
+                        🏆 50%+ 降本增效超能力 (Superpower at Work):
+                      </span>
+                      <p className="text-[11px] leading-relaxed">
+                        {jdDeepAnalysis.hiringManager.superpowerAtWork}
+                      </p>
+                    </div>
+
+                    {/* Top Competencies Ranked by Frequency */}
+                    <div className="pt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                        📋 JD 胜任力频次排序 (Top Competencies):
+                      </span>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {jdDeepAnalysis.competencies.slice(0, 4).map((c) => (
+                          <div
+                            key={c.name}
+                            className="flex items-center justify-between rounded border border-border/25 bg-background/80 px-2 py-1 text-[10px]"
+                          >
+                            <span className="font-medium text-foreground truncate">{c.name}</span>
+                            <span className="text-primary font-bold">{c.count}次</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Bottom Actions: JD to Questions Engine */}
+            <div className="space-y-2 pt-1">
               <button
-                onClick={handleGenerateJdQuestions}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
+                type="button"
+                onClick={handleGenerateFullJdQuestionSet}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/80 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-95 transition-all cursor-pointer"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                根据 JD 优势与缺口自动押题 (生成 STAR 小抄)
+                <Sparkles className="h-4 w-4" />
+                ✨ 一键生成全套押题 (JD 转面试问题神器) →
               </button>
-              <button
-                onClick={() => setSubTab("star_bank")}
-                className="w-full rounded-xl border border-border/40 bg-secondary/40 px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary/70 transition-all cursor-pointer"
-              >
-                进入押题库编辑 3-Bullet 小抄卡 →
-              </button>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+                <span>包含: 🟢 必考通用题 · 🔵 JD胜任力定制题 · 🔴 避坑红旗题</span>
+                <button
+                  type="button"
+                  onClick={handleGenerateJdQuestions}
+                  className="text-primary hover:underline cursor-pointer"
+                >
+                  仅补入 2 道缺口题
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1038,30 +1409,62 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
           {/* Right: STAR 4-Box Editor + 3-Bullet Cheat Card */}
           {selectedQuestion && (
             <div className="lg:col-span-7 space-y-3 rounded-xl border border-border/30 bg-card/30 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-foreground">
-                  🗂️ STAR 故事打磨 & 面中 3-Bullet 小抄生成
-                </h3>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={handleAutoBuildThreeBullets}
-                    className="flex items-center gap-1 rounded-lg bg-primary/15 px-2.5 py-1 text-meta font-semibold text-primary hover:bg-primary/25 cursor-pointer"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    从 STAR 自动提炼 3-Bullet
-                  </button>
-                  <button
-                    onClick={() => {
-                      setPracticeTranscript(
-                        `${selectedQuestion.opener} ${selectedQuestion.situation} ${selectedQuestion.task} ${selectedQuestion.action} ${selectedQuestion.result}`
-                      );
-                      setSubTab("mock_coach");
-                    }}
-                    className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1 text-meta font-semibold text-success hover:bg-success/25 cursor-pointer"
-                  >
-                    <Mic className="h-3 w-3" />
-                    拿这题去开口演练 →
-                  </button>
+              <div className="space-y-2 border-b border-border/20 pb-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-xs font-bold text-foreground">
+                      🗂️ HEALER 故事打磨 & 3-Vector 防守盾
+                    </h3>
+                    <span className="rounded bg-primary/15 px-1.5 py-0.2 text-[10px] font-bold text-primary">
+                      Jonathan V2.0 黄金结构
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleGenerateHealerStoryForCurrent}
+                      className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1 text-xs font-bold text-white hover:bg-primary/90 shadow-sm cursor-pointer"
+                    >
+                      <Wand2 className="h-3.5 w-3.5" />
+                      ✨ 一键生成 HEALER 故事小抄
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAutoBuildThreeBullets}
+                      className="flex items-center gap-1 rounded-lg bg-secondary/80 px-2 py-1 text-meta font-medium text-foreground hover:bg-secondary cursor-pointer"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      提炼 3-Bullet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPracticeTranscript(
+                          `${selectedQuestion.opener} ${selectedQuestion.situation} ${selectedQuestion.task} ${selectedQuestion.action} ${selectedQuestion.result}`
+                        );
+                        setSubTab("mock_coach");
+                      }}
+                      className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1 text-meta font-semibold text-success hover:bg-success/25 cursor-pointer"
+                    >
+                      <Mic className="h-3 w-3" />
+                      去演练 →
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preset Real Story Pills */}
+                <div className="flex items-center gap-1.5 flex-wrap text-[11px] pt-0.5">
+                  <span className="text-muted-foreground font-medium shrink-0">🎲 载入实战经典故事:</span>
+                  {VERIFIED_STORY_TEMPLATES.map((tmpl, idx) => (
+                    <button
+                      key={tmpl.name}
+                      type="button"
+                      onClick={() => handleLoadRealStory(idx)}
+                      className="rounded-md border border-border/30 bg-background/60 px-2 py-0.5 text-foreground hover:border-primary/50 hover:bg-primary/10 transition-all cursor-pointer"
+                    >
+                      {tmpl.name}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -1167,6 +1570,122 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                   className="w-full rounded-lg border border-border/30 bg-background/70 px-2.5 py-1 text-xs font-semibold text-primary"
                 />
               </div>
+
+              {/* ── 3-Vector Follow-Up Defense Shields ── */}
+              {selectedQuestion.defenseShields && (
+                <div className="rounded-xl border border-primary/30 bg-card/40 p-3 space-y-2">
+                  <div
+                    onClick={() => setShowDefenseShields(!showDefenseShields)}
+                    className="flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <ShieldCheck className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-bold text-foreground">
+                        🛡️ 3-Vector 刁钻追问防守盾 (Follow-Up Defense Shields)
+                      </span>
+                    </div>
+                    {showDefenseShields ? (
+                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </div>
+
+                  {showDefenseShields && (
+                    <div className="space-y-2 pt-1 text-xs">
+                      {/* Vector 1: Edge Case */}
+                      <div className="rounded-lg border border-border/30 bg-background/60 p-2 space-y-1">
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-primary">
+                          <span>🎯 Vector 1: 极端边界与容错深挖:</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground italic">
+                          "{selectedQuestion.defenseShields.vector1_edgeCase.question}"
+                        </p>
+                        <div className="text-[11px] text-foreground font-medium bg-primary/5 rounded p-1.5 mt-0.5">
+                          <span className="font-bold text-primary mr-1">30秒反击口模:</span>
+                          {selectedQuestion.defenseShields.vector1_edgeCase.counterAnswer}
+                        </div>
+                      </div>
+
+                      {/* Vector 2: Pushback */}
+                      <div className="rounded-lg border border-border/30 bg-background/60 p-2 space-y-1">
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-warning">
+                          <span>🤝 Vector 2: 团队阻力与推力:</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground italic">
+                          "{selectedQuestion.defenseShields.vector2_pushback.question}"
+                        </p>
+                        <div className="text-[11px] text-foreground font-medium bg-warning/5 rounded p-1.5 mt-0.5">
+                          <span className="font-bold text-warning mr-1">30秒反击口模:</span>
+                          {selectedQuestion.defenseShields.vector2_pushback.counterAnswer}
+                        </div>
+                      </div>
+
+                      {/* Vector 3: Trade-off */}
+                      <div className="rounded-lg border border-border/30 bg-background/60 p-2 space-y-1">
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-success">
+                          <span>⚖️ Vector 3: 架构取舍与成本代价:</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground italic">
+                          "{selectedQuestion.defenseShields.vector3_tradeoff.question}"
+                        </p>
+                        <div className="text-[11px] text-foreground font-medium bg-success/5 rounded p-1.5 mt-0.5">
+                          <span className="font-bold text-success mr-1">30秒反击口模:</span>
+                          {selectedQuestion.defenseShields.vector3_tradeoff.counterAnswer}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Anti-Freeze Flashcard ── */}
+              {selectedQuestion.antiFreeze && (
+                <div className="rounded-xl border border-secondary bg-background/50 p-3 space-y-1.5 text-xs">
+                  <div
+                    onClick={() => setShowAntiFreeze(!showAntiFreeze)}
+                    className="flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-bold text-foreground">
+                        🧊 Anti-Freeze 防卡壳小抄卡 (记忆锚点 & 救急话术)
+                      </span>
+                    </div>
+                    {showAntiFreeze ? (
+                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </div>
+
+                  {showAntiFreeze && (
+                    <div className="space-y-1.5 pt-1 text-[11px]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-muted-foreground shrink-0">3 个记忆锚点:</span>
+                        <div className="flex gap-1 flex-wrap">
+                          {selectedQuestion.antiFreeze.memoryAnchors.map((anchor) => (
+                            <span
+                              key={anchor}
+                              className="rounded bg-primary/10 border border-primary/20 px-2 py-0.5 font-bold text-primary"
+                            >
+                              {anchor}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rounded bg-secondary/40 p-2">
+                        <span className="font-bold text-foreground block mb-0.5">✨ 黄金金句 (Golden Quote):</span>
+                        <p className="italic text-foreground">{selectedQuestion.antiFreeze.goldenQuote}</p>
+                      </div>
+                      <div className="rounded bg-secondary/40 p-2">
+                        <span className="font-bold text-warning block mb-0.5">🚨 救急兜底句 (Emergency Pivot):</span>
+                        <p className="text-muted-foreground">{selectedQuestion.antiFreeze.emergencyPivotPhrase}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
