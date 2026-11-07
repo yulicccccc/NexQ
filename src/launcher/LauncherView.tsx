@@ -8,6 +8,8 @@ import { showToast } from "../stores/toastStore";
 import { RecentMeetings } from "./RecentMeetings";
 import { MeetingDetails } from "./meeting-details";
 import { MeetingSetupModal } from "./MeetingSetupModal";
+import { PrepStudioModule } from "./PrepStudioModule";
+import { DebriefLabModule } from "./DebriefLabModule";
 import { FileUpload } from "../context/FileUpload";
 import { ResourceCard } from "../context/ResourceCard";
 import { TokenBudget } from "../context/TokenBudget";
@@ -88,6 +90,7 @@ export function LauncherView() {
   const [ragStatus, setRagStatus] = useState<"idle" | "updating" | "done">("idle");
   const [showTestKB, setShowTestKB] = useState(false);
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
+  const [activeModule, setActiveModule] = useState<"prep" | "live" | "debrief">("prep");
   // Pending audioMode/scenario from setup modal — used when conflict resolution triggers start
   const pendingMeetingSetup = useRef<{ audioMode: AudioMode; scenario: AIScenario } | null>(null);
 
@@ -282,7 +285,75 @@ export function LauncherView() {
         </button>
       </header>
 
-      {/* ═══ MAIN DASHBOARD ═══ */}
+      {/* ═══ 3 CORE MODULES NAVIGATION BAR (PREP / LIVE / DEBRIEF) ═══ */}
+      <div className="grid grid-cols-3 gap-2.5 border-b border-border/20 bg-card/30 px-5 py-2.5">
+        <button
+          onClick={() => setActiveModule("prep")}
+          className={`flex items-center justify-between rounded-xl border px-3.5 py-2 text-left transition-all cursor-pointer ${
+            activeModule === "prep"
+              ? "border-primary bg-primary/15 shadow-sm"
+              : "border-border/25 bg-background/40 hover:border-primary/40 hover:bg-background/70"
+          }`}
+        >
+          <div>
+            <div className="text-xs font-bold text-foreground">🏋️ Module 1: 面前备战教练 (Prep Studio)</div>
+            <div className="text-[11px] text-muted-foreground">简历×JD 押题 · STAR 小抄生成 · AI 模拟对练 · 口头禅体检</div>
+          </div>
+          <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">BEFORE</span>
+        </button>
+
+        <button
+          onClick={() => setActiveModule("live")}
+          className={`flex items-center justify-between rounded-xl border px-3.5 py-2 text-left transition-all cursor-pointer ${
+            activeModule === "live"
+              ? "border-warning bg-warning/15 shadow-sm"
+              : "border-border/25 bg-background/40 hover:border-warning/40 hover:bg-background/70"
+          }`}
+        >
+          <div>
+            <div className="text-xs font-bold text-foreground">⚡ Module 2: 面中实战提词 (Live CoPilot)</div>
+            <div className="text-[11px] text-muted-foreground">双路静默收音 · 3-Bullet 闪电提词 · 隐身悬浮窗 · 全程录音</div>
+          </div>
+          <span className="rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-bold text-warning">DURING</span>
+        </button>
+
+        <button
+          onClick={() => setActiveModule("debrief")}
+          className={`flex items-center justify-between rounded-xl border px-3.5 py-2 text-left transition-all cursor-pointer ${
+            activeModule === "debrief"
+              ? "border-success bg-success/15 shadow-sm"
+              : "border-border/25 bg-background/40 hover:border-success/40 hover:bg-background/70"
+          }`}
+        >
+          <div>
+            <div className="text-xs font-bold text-foreground">🎬 Module 3: 面后找茬复盘 (Debrief Lab)</div>
+            <div className="text-[11px] text-muted-foreground">声波回放 · 真题vs原话vs母语满分四栏表 · 错题本回流</div>
+          </div>
+          <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-bold text-success">AFTER</span>
+        </button>
+      </div>
+
+      {/* ═══ MODULE 1: PREP STUDIO ═══ */}
+      {activeModule === "prep" && (
+        <PrepStudioModule
+          onStartLiveMock={() => {
+            setActiveModule("live");
+            handleStartMeeting();
+          }}
+        />
+      )}
+
+      {/* ═══ MODULE 3: DEBRIEF LAB ═══ */}
+      {activeModule === "debrief" && (
+        <DebriefLabModule
+          recentMeetings={recentMeetings}
+          onSelectMeeting={handleSelectMeeting}
+          onJumpToPrepMistakes={() => setActiveModule("prep")}
+        />
+      )}
+
+      {/* ═══ MODULE 2: LIVE COPILOT DASHBOARD ═══ */}
+      {activeModule === "live" && (
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── LEFT: MEETINGS SIDEBAR ── */}
@@ -515,6 +586,7 @@ export function LauncherView() {
           </div>
         </div>
       </div>
+      )}
 
       {/* ═══ FOOTER ═══ */}
       <footer className="dash-footer flex items-center justify-between border-t border-border/20">

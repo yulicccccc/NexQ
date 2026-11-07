@@ -1357,7 +1357,7 @@ export const useConfigStore = create<ConfigState>((set) => ({
       console.log("[configStore] Config loaded from store (with cross-window sync)");
     } catch (err) {
       console.error("[configStore] Failed to load config:", err);
-      set({ _loaded: true });
+      set({ _loaded: true, firstRunCompleted: true });
     }
   },
 }));
