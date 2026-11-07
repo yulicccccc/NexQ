@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useAIActionsStore } from "../stores/aiActionsStore";
 import { showToast } from "../stores/toastStore";
 import {
@@ -16,7 +16,19 @@ import {
   Trash2,
   Award,
   Clock,
+  UploadCloud,
+  FileText,
+  FileUp,
+  Wand2,
+  Building2,
+  Briefcase,
+  Paperclip,
+  Check,
 } from "lucide-react";
+import {
+  parseJdMetadata,
+  parseResumeFile,
+} from "./documentParser";
 
 export interface StarQuestionItem {
   id: string;
@@ -97,6 +109,34 @@ const DEFAULT_PREP_DATA: PrepProfileData = {
   ],
 };
 
+
+const SAMPLE_JDS = [
+  {
+    name: "Netflix (Streaming Core)",
+    company: "Netflix",
+    roleTitle: "Senior Distributed Systems Engineer",
+    jdText: `Company: Netflix\nJob Title: Senior Distributed Systems Engineer\n\nAbout the Role:\nAt Netflix, we want to entertain the world. We are looking for a Senior Distributed Systems Engineer to scale our global streaming pipeline and real-time telemetry services.\n\nKey Responsibilities:\n- Architect high-throughput, low-latency distributed microservices in Rust, Go, or C++\n- Optimize real-time media ingestion and telemetry pipeline with sub-3s P99 latency\n- Collaborate with cross-functional teams across AWS cloud infrastructure, Kafka, and Kubernetes\n- Lead incident response, root cause diagnostics, and resilient failure recovery\n\nQualifications:\n- 5+ years building high-concurrency production backends\n- Deep knowledge of multithreading, event loops, WASAPI/audio-video streaming, and memory profiling\n- Experience with Kafka, Redis, Docker, Kubernetes, and AWS cloud architectures\n- Strong ownership and data-driven problem solving`,
+  },
+  {
+    name: "Anthropic (AI Systems)",
+    company: "Anthropic",
+    roleTitle: "Staff AI Inference & Systems Engineer",
+    jdText: `Staff AI Inference & Systems Engineer at Anthropic\n\nAbout Anthropic:\nAnthropic is an AI safety and research company dedicated to building reliable, beneficial AI systems. We are seeking a Staff Engineer to architect low-latency LLM serving pipelines and real-time reasoning runtimes.\n\nResponsibilities:\n- Design low-latency inference engines for frontier Claude models\n- Optimize GPU/CPU memory bandwidth, KV cache reuse, and speculative decoding\n- Build real-time streaming APIs handling tens of thousands of concurrent token streams\n\nRequirements:\n- Strong production experience in Python, Rust, PyTorch, and CUDA/C++\n- Proven track record optimizing distributed inference, latency SLAs, and high-reliability APIs`,
+  },
+  {
+    name: "Google (Cloud / Real-Time)",
+    company: "Google",
+    roleTitle: "Senior Software Engineer - Real-Time Infrastructure",
+    jdText: `Google - Senior Software Engineer - Real-Time Infrastructure\n\nAbout the Team:\nGoogle Cloud Real-Time Communications powers Google Meet, Voice, and live media pipelines for over 300 million daily users.\n\nMinimum Qualifications:\n- Bachelor's degree in CS or equivalent practical experience\n- 5+ years of software development experience in Python, C++, Go, or Rust\n- Experience building distributed systems, RPC services, and high-availability cloud backends\n\nPreferred Qualifications:\n- Experience with WebRTC, WASAPI audio loopback, socket streaming, and low-latency protocols\n- Experience optimizing P95/P99 latency bottlenecks and production reliability to 99.99%`,
+  },
+  {
+    name: "Stripe (Payments Core)",
+    company: "Stripe",
+    roleTitle: "Senior Backend Engineer - Core Processing",
+    jdText: `Stripe is hiring a Senior Backend Engineer to join our Core Payment Processing team.\n\nAbout Stripe:\nStripe is a financial infrastructure platform for the internet. Millions of companies use Stripe to accept payments and grow their revenue.\n\nRole Requirements:\n- Build robust distributed transaction pipelines with 99.999% SLA reliability\n- Profile and optimize microsecond database latency across distributed databases\n- Lead system design for resilient distributed transactions, idempotency, and fraud detection\n- Tech stack: Java, Go, Ruby, distributed SQL, Kafka, AWS, Kubernetes`,
+  },
+];
+
 const STOP_WORDS = new Set([
   "the", "and", "for", "with", "that", "this", "from", "your", "will", "have",
   "are", "you", "our", "work", "team", "role", "looking", "experience", "experienced",
@@ -170,6 +210,118 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
   const [timerRunning, setTimerRunning] = useState(false);
 
   const setCustomInstructions = useAIActionsStore((s) => s.setCustomInstructions);
+  // File upload & JD parsing state
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<{
+    name: string;
+    sizeStr: string;
+    charCount: number;
+    wordCount: number;
+  } | null>(null);
+  const [isDraggingResume, setIsDraggingResume] = useState(false);
+  const [isParsingFile, setIsParsingFile] = useState(false);
+  const [detectedSkills, setDetectedSkills] = useState<string[]>([]);
+  const [sampleJdIndex, setSampleJdIndex] = useState(0);
+
+  // ── Auto-Parse JD on demand or on paste ──
+  const handleParseJd = useCallback(
+    (customText?: string) => {
+      const textToParse = customText ?? prepData.jdText;
+      if (!textToParse.trim()) {
+        showToast("请先在下方输入框粘贴或输入 JD 文本", "warning");
+        return;
+      }
+      const meta = parseJdMetadata(textToParse);
+
+      setPrepData((prev) => {
+        const newCompany = meta.company || prev.company;
+        const newRole = meta.roleTitle || prev.roleTitle;
+        return {
+          ...prev,
+          company: newCompany,
+          roleTitle: newRole,
+          jdText: customText ? customText : prev.jdText,
+        };
+      });
+
+      setDetectedSkills(meta.extractedSkills);
+
+      if (meta.company && meta.roleTitle) {
+        showToast(
+          `🎉 智能提取成功：公司「${meta.company}」· 职位「${meta.roleTitle}」！`,
+          "success"
+        );
+      } else if (meta.company || meta.roleTitle) {
+        showToast(
+          `✨ 已自动识别并填充：${meta.company ? `公司「${meta.company}」` : `职位「${meta.roleTitle}」`}`,
+          "info"
+        );
+      } else {
+        showToast("💡 已完成文本分析，未发现固定格式标题，您可在上方直接微调", "info");
+      }
+    },
+    [prepData.jdText]
+  );
+
+  // ── On Paste into JD textarea: Instant Auto-fill ──
+  const handleJdPaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const pasted = e.clipboardData.getData("text");
+      if (pasted && pasted.trim().length > 30) {
+        handleParseJd(pasted);
+      }
+    },
+    [handleParseJd]
+  );
+
+  // ── Quick Load Sample JD ──
+  const handleLoadNextSampleJd = useCallback(() => {
+    const sample = SAMPLE_JDS[sampleJdIndex % SAMPLE_JDS.length];
+    setSampleJdIndex((prev) => prev + 1);
+    setPrepData((prev) => ({
+      ...prev,
+      company: sample.company,
+      roleTitle: sample.roleTitle,
+      jdText: sample.jdText,
+    }));
+    const meta = parseJdMetadata(sample.jdText);
+    setDetectedSkills(meta.extractedSkills);
+    showToast(`已加载大厂 JD 样例：${sample.name}`, "info");
+  }, [sampleJdIndex]);
+
+  // ── Handle Resume File Upload ──
+  const handleProcessResumeFile = useCallback(async (file: File) => {
+    setIsParsingFile(true);
+    try {
+      const res = await parseResumeFile(file);
+      setUploadedFile({
+        name: res.fileName,
+        sizeStr: res.fileSizeStr,
+        charCount: res.charCount,
+        wordCount: res.wordCount,
+      });
+      setPrepData((prev) => ({
+        ...prev,
+        resumeText: res.text,
+      }));
+      showToast(
+        `📄 简历文件「${res.fileName}」解析成功 (${res.fileSizeStr} · ${res.charCount} 字符)！`,
+        "success"
+      );
+    } catch (err) {
+      console.error("[ResumeUpload] Error parsing file:", err);
+      showToast("简历文件解析失败，请检查文件格式是否有效", "error");
+    } finally {
+      setIsParsingFile(false);
+    }
+  }, []);
+
+  const handleClearResume = useCallback(() => {
+    setUploadedFile(null);
+    setPrepData((prev) => ({ ...prev, resumeText: "" }));
+    showToast("已清空简历经历文本", "info");
+  }, []);
+
 
   useEffect(() => {
     savePrepData(prepData);
@@ -492,61 +644,209 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-meta font-medium text-muted-foreground mb-1">
-                  目标公司 (Company)
-                </label>
-                <input
-                  type="text"
-                  value={prepData.company}
-                  onChange={(e) =>
-                    setPrepData((p) => ({ ...p, company: e.target.value }))
-                  }
-                  className="w-full rounded-lg border border-border/30 bg-background/60 px-2.5 py-1.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-meta font-medium text-muted-foreground">
+                    目标公司 (Company)
+                  </label>
+                  <span className="text-[10px] text-primary/80 font-medium">✨ 粘贴 JD 自动填充</span>
+                </div>
+                <div className="relative">
+                  <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+                  <input
+                    type="text"
+                    value={prepData.company}
+                    onChange={(e) =>
+                      setPrepData((p) => ({ ...p, company: e.target.value }))
+                    }
+                    placeholder="如: Netflix, Google..."
+                    className="w-full rounded-lg border border-border/30 bg-background/60 pl-8 pr-2.5 py-1.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-meta font-medium text-muted-foreground mb-1">
-                  目标岗位 (Role Title)
-                </label>
-                <input
-                  type="text"
-                  value={prepData.roleTitle}
-                  onChange={(e) =>
-                    setPrepData((p) => ({ ...p, roleTitle: e.target.value }))
-                  }
-                  className="w-full rounded-lg border border-border/30 bg-background/60 px-2.5 py-1.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-meta font-medium text-muted-foreground">
+                    目标岗位 (Role Title)
+                  </label>
+                  <span className="text-[10px] text-primary/80 font-medium">✨ 智能标题识别</span>
+                </div>
+                <div className="relative">
+                  <Briefcase className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+                  <input
+                    type="text"
+                    value={prepData.roleTitle}
+                    onChange={(e) =>
+                      setPrepData((p) => ({ ...p, roleTitle: e.target.value }))
+                    }
+                    placeholder="如: Senior Distributed Systems Engineer..."
+                    className="w-full rounded-lg border border-border/30 bg-background/60 pl-8 pr-2.5 py-1.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-meta font-medium text-muted-foreground mb-1">
-                📄 你的核心简历亮点 / 项目经历 (Resume Summary & Achievements)
-              </label>
+            {/* Resume Upload & Highlights */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-meta font-medium text-muted-foreground">
+                  📄 你的核心简历亮点 / 项目经历 (Resume Summary & Achievements)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.doc,.txt,.md,.json"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleProcessResumeFile(file);
+                      if (e.target) e.target.value = "";
+                    }}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1 rounded bg-secondary/70 px-2 py-0.5 text-meta font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-all cursor-pointer"
+                  >
+                    <FileUp className="h-3 w-3" />
+                    上传本地文件 (PDF/DOCX/MD)
+                  </button>
+                </div>
+              </div>
+
+              {/* Upload Dropzone or File Card */}
+              {uploadedFile ? (
+                <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs transition-all">
+                  <div className="flex items-center gap-2 truncate">
+                    <FileText className="h-4 w-4 text-primary shrink-0" />
+                    <span className="font-semibold text-foreground truncate">{uploadedFile.name}</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">
+                      ({uploadedFile.sizeStr} · 已提取 {uploadedFile.charCount} 字符)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                    >
+                      重新上传
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearResume}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-destructive cursor-pointer"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDraggingResume(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDraggingResume(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDraggingResume(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleProcessResumeFile(file);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`group flex items-center justify-center gap-2.5 rounded-lg border border-dashed py-2 px-3 text-center transition-all cursor-pointer ${
+                    isDraggingResume
+                      ? "border-primary bg-primary/20 scale-[0.99]"
+                      : "border-border/40 bg-background/40 hover:border-primary/50 hover:bg-background/80"
+                  }`}
+                >
+                  <UploadCloud className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                    {isParsingFile
+                      ? "⏳ 正在提取简历文本..."
+                      : "拖拽简历文件到此处，或点击浏览 (支持 PDF / Word .docx / TXT / Markdown)"}
+                  </span>
+                  <span className="rounded bg-secondary/80 px-1.5 py-0.2 text-[10px] text-muted-foreground">
+                    离线解析
+                  </span>
+                </div>
+              )}
+
               <textarea
                 rows={4}
                 value={prepData.resumeText}
                 onChange={(e) =>
                   setPrepData((p) => ({ ...p, resumeText: e.target.value }))
                 }
-                placeholder="粘贴你的简历核心经历、技术栈与量化成果..."
+                placeholder="可以直接粘贴或在上方上传简历，支持在此微调项目经历、技术栈与量化指标..."
                 className="w-full rounded-lg border border-border/30 bg-background/60 p-2.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
               />
             </div>
 
-            <div>
-              <label className="block text-meta font-medium text-muted-foreground mb-1">
-                📋 目标岗位 JD (Job Description)
-              </label>
+            {/* Job Description & Auto-Extractor */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <label className="block text-meta font-medium text-muted-foreground">
+                    📋 目标岗位 JD (Job Description)
+                  </label>
+                  <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
+                    ⚡ 粘贴即智能识别
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleParseJd()}
+                    className="flex items-center gap-1 rounded bg-primary/15 px-2 py-0.5 text-meta font-semibold text-primary hover:bg-primary/25 transition-all cursor-pointer"
+                    title="从当前输入的 JD 中提取公司和职位"
+                  >
+                    <Wand2 className="h-3 w-3" />
+                    一键提取公司/职位
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLoadNextSampleJd}
+                    className="rounded bg-secondary/60 px-2 py-0.5 text-meta font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-all cursor-pointer"
+                    title="切换大厂真实 JD 样例进行测试"
+                  >
+                    🎲 换个大厂 JD
+                  </button>
+                </div>
+              </div>
+
               <textarea
                 rows={4}
                 value={prepData.jdText}
                 onChange={(e) =>
                   setPrepData((p) => ({ ...p, jdText: e.target.value }))
                 }
-                placeholder="粘贴目标公司的 Job Description 要求..."
+                onPaste={handleJdPaste}
+                placeholder="直接粘贴目标职位的 Job Description（支持自动识别提取公司名称、职位 Title 与技术栈关键词）..."
                 className="w-full rounded-lg border border-border/30 bg-background/60 p-2.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
               />
+
+              {/* Detected tech stack badges */}
+              {detectedSkills.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span className="text-[10px] font-semibold text-primary shrink-0">💡 智能提取技术栈:</span>
+                  {detectedSkills.map((sk) => (
+                    <span
+                      key={sk}
+                      className="rounded border border-primary/30 bg-primary/10 px-1.5 py-0.2 text-[10px] font-medium text-primary"
+                    >
+                      {sk}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

@@ -257,7 +257,10 @@ export function LauncherView() {
       <header className="dash-header flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-border/20">
         <div className="flex items-center gap-2.5">
           <img src="/nexq-icon.png" alt="NexQ" className="h-7 w-7 rounded-lg" />
-          <span className="text-sm font-bold tracking-tight text-foreground">NexQ</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold tracking-tight text-foreground">Interview Copilot (面试神器)</span>
+            <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">v0.9.0</span>
+          </div>
         </div>
 
         {/* Active meeting in header */}
