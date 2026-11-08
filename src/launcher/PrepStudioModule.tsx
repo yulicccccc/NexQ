@@ -924,65 +924,106 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
           SUB-TAB 1: RESUME vs. JD GAP ANALYZER & QUESTION GENERATOR
          ════════════════════════════════════════════════════════════════ */}
       {subTab === "analyzer" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left: Inputs */}
-          <div className="lg:col-span-7 space-y-3 rounded-xl border border-border/30 bg-card/30 p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                🎯 目标岗位档案 (Job Goal Profile)
-              </h3>
-              <span className="text-meta text-muted-foreground">自动本地保存</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-meta font-medium text-muted-foreground">
-                    目标公司 (Company)
-                  </label>
-                  <span className="text-[10px] text-primary/80 font-medium">✨ 粘贴 JD 自动填充</span>
-                </div>
-                <div className="relative">
-                  <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
-                  <input
-                    type="text"
-                    value={prepData.company}
-                    onChange={(e) =>
-                      setPrepData((p) => ({ ...p, company: e.target.value }))
-                    }
-                    placeholder="如: Netflix, Google..."
-                    className="w-full rounded-lg border border-border/30 bg-background/60 pl-8 pr-2.5 py-1.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-meta font-medium text-muted-foreground">
-                    目标岗位 (Role Title)
-                  </label>
-                  <span className="text-[10px] text-primary/80 font-medium">✨ 智能标题识别</span>
-                </div>
-                <div className="relative">
-                  <Briefcase className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
-                  <input
-                    type="text"
-                    value={prepData.roleTitle}
-                    onChange={(e) =>
-                      setPrepData((p) => ({ ...p, roleTitle: e.target.value }))
-                    }
-                    placeholder="如: Senior Distributed Systems Engineer..."
-                    className="w-full rounded-lg border border-border/30 bg-background/60 pl-8 pr-2.5 py-1.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Resume Upload & Highlights */}
-            <div className="space-y-1.5">
+        <div className="space-y-4">
+          {/* Top: 2 Clear Portals Side-by-Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 📋 PORTAL 1: 目标岗位 JD (Job Description) */}
+            <div className="flex flex-col space-y-2.5 rounded-xl border border-border/30 bg-card/30 p-4">
               <div className="flex items-center justify-between">
-                <label className="block text-meta font-medium text-muted-foreground">
-                  📄 你的核心简历亮点 / 项目经历 (Resume Summary & Achievements)
-                </label>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/20 text-primary text-[11px] font-bold">
+                    ①
+                  </span>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    📋 入口一：目标岗位 JD (Job Description)
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleLoadNextSampleJd}
+                    className="flex items-center gap-1 rounded bg-secondary/70 px-2 py-0.5 text-meta font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-all cursor-pointer"
+                    title="切换大厂真实 JD 样例进行测试"
+                  >
+                    🎲 换个大厂 JD
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const clipText = await navigator.clipboard.readText();
+                        if (clipText) {
+                          setPrepData((p) => ({ ...p, jdText: clipText }));
+                          handleParseJd(clipText);
+                        }
+                      } catch (err) {
+                        console.warn("Clipboard access:", err);
+                      }
+                    }}
+                    className="flex items-center gap-1 rounded bg-primary/15 px-2 py-0.5 text-meta font-semibold text-primary hover:bg-primary/25 transition-all cursor-pointer"
+                  >
+                    📋 粘贴剪贴板
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                rows={6}
+                value={prepData.jdText}
+                onChange={(e) =>
+                  setPrepData((p) => ({ ...p, jdText: e.target.value }))
+                }
+                onPaste={handleJdPaste}
+                placeholder="直接粘贴目标职位的 Job Description（系统将自动识别提取目标公司、职位名称、核心胜任力要求与高频技术栈）..."
+                className="w-full rounded-lg border border-border/30 bg-background/60 p-3 text-xs text-foreground focus:border-primary/50 focus:outline-none resize-none leading-relaxed"
+              />
+
+              {/* Detected Company & Role Bar */}
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-secondary/40 border border-border/20 px-3 py-2 text-xs flex-wrap">
+                <div className="flex items-center gap-2.5 truncate">
+                  <span className="text-[11px] font-bold text-muted-foreground shrink-0">自动识别:</span>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <input
+                      type="text"
+                      value={prepData.company}
+                      onChange={(e) => setPrepData((p) => ({ ...p, company: e.target.value }))}
+                      placeholder="公司名 (自动提取)"
+                      className="bg-transparent text-xs font-semibold text-foreground focus:outline-none border-b border-dashed border-border/40 focus:border-primary w-28 truncate"
+                      title="点击可直接手动修改公司名"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Briefcase className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <input
+                      type="text"
+                      value={prepData.roleTitle}
+                      onChange={(e) => setPrepData((p) => ({ ...p, roleTitle: e.target.value }))}
+                      placeholder="岗位 Title (自动提取)"
+                      className="bg-transparent text-xs font-semibold text-foreground focus:outline-none border-b border-dashed border-border/40 focus:border-primary w-40 truncate"
+                      title="点击可直接手动修改职位名称"
+                    />
+                  </div>
+                </div>
+                {detectedSkills.length > 0 && (
+                  <span className="text-[10px] text-primary/80 font-medium shrink-0">
+                    已提取 {detectedSkills.length} 项关键技术
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 📄 PORTAL 2: 我的个人简历 (Resume) */}
+            <div className="flex flex-col space-y-2.5 rounded-xl border border-border/30 bg-card/30 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/20 text-primary text-[11px] font-bold">
+                    ②
+                  </span>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    📄 入口二：我的个人简历 (Resume)
+                  </h3>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <input
                     ref={fileInputRef}
@@ -998,11 +1039,20 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1 rounded bg-secondary/70 px-2 py-0.5 text-meta font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-all cursor-pointer"
+                    className="flex items-center gap-1 rounded bg-primary/15 px-2 py-0.5 text-meta font-semibold text-primary hover:bg-primary/25 transition-all cursor-pointer"
                   >
                     <FileUp className="h-3 w-3" />
-                    上传本地文件 (PDF/DOCX/MD)
+                    上传文件 (PDF/Word)
                   </button>
+                  {uploadedFile && (
+                    <button
+                      type="button"
+                      onClick={handleClearResume}
+                      className="rounded bg-secondary/70 px-2 py-0.5 text-meta font-medium text-muted-foreground hover:text-destructive transition-all cursor-pointer"
+                    >
+                      清空
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1013,25 +1063,16 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                     <FileText className="h-4 w-4 text-primary shrink-0" />
                     <span className="font-semibold text-foreground truncate">{uploadedFile.name}</span>
                     <span className="text-[11px] text-muted-foreground shrink-0">
-                      ({uploadedFile.sizeStr} · 已提取 {uploadedFile.charCount} 字符)
+                      ({uploadedFile.sizeStr} · 已解析 {uploadedFile.charCount} 字符)
                     </span>
                   </div>
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
-                    >
-                      重新上传
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleClearResume}
-                      className="text-[11px] font-medium text-muted-foreground hover:text-destructive cursor-pointer"
-                    >
-                      清空
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-[11px] font-semibold text-primary hover:underline cursor-pointer shrink-0"
+                  >
+                    更换文件
+                  </button>
                 </div>
               ) : (
                 <div
@@ -1053,99 +1094,67 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                     if (file) handleProcessResumeFile(file);
                   }}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`group flex items-center justify-center gap-2.5 rounded-lg border border-dashed py-2 px-3 text-center transition-all cursor-pointer ${
+                  className={`group flex items-center justify-center gap-2.5 rounded-lg border border-dashed py-2.5 px-3 text-center transition-all cursor-pointer ${
                     isDraggingResume
                       ? "border-primary bg-primary/20 scale-[0.99]"
                       : "border-border/40 bg-background/40 hover:border-primary/50 hover:bg-background/80"
                   }`}
                 >
-                  <UploadCloud className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <UploadCloud className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                     {isParsingFile
-                      ? "⏳ 正在提取简历文本..."
-                      : "拖拽简历文件到此处，或点击浏览 (支持 PDF / Word .docx / TXT / Markdown)"}
+                      ? "⏳ 正在极速解析简历文本..."
+                      : "拖拽 PDF / Word (.docx) 简历到此处，或点击浏览上传"}
                   </span>
-                  <span className="rounded bg-secondary/80 px-1.5 py-0.2 text-[10px] text-muted-foreground">
-                    离线解析
+                  <span className="rounded bg-secondary/80 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    离线保密解析
                   </span>
                 </div>
               )}
 
               <textarea
-                rows={4}
+                rows={uploadedFile ? 5 : 4}
                 value={prepData.resumeText}
                 onChange={(e) =>
                   setPrepData((p) => ({ ...p, resumeText: e.target.value }))
                 }
-                placeholder="可以直接粘贴或在上方上传简历，支持在此微调项目经历、技术栈与量化指标..."
-                className="w-full rounded-lg border border-border/30 bg-background/60 p-2.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
+                placeholder="上传文件后内容自动在此显示；也可直接在此粘贴简历项目经历、量化成就与技术亮点..."
+                className="w-full rounded-lg border border-border/30 bg-background/60 p-3 text-xs text-foreground focus:border-primary/50 focus:outline-none resize-none leading-relaxed"
               />
-            </div>
-
-            {/* Job Description & Auto-Extractor */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <label className="block text-meta font-medium text-muted-foreground">
-                    📋 目标岗位 JD (Job Description)
-                  </label>
-                  <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
-                    ⚡ 粘贴即智能识别
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleParseJd()}
-                    className="flex items-center gap-1 rounded bg-primary/15 px-2 py-0.5 text-meta font-semibold text-primary hover:bg-primary/25 transition-all cursor-pointer"
-                    title="从当前输入的 JD 中提取公司和职位"
-                  >
-                    <Wand2 className="h-3 w-3" />
-                    一键提取公司/职位
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLoadNextSampleJd}
-                    className="rounded bg-secondary/60 px-2 py-0.5 text-meta font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-all cursor-pointer"
-                    title="切换大厂真实 JD 样例进行测试"
-                  >
-                    🎲 换个大厂 JD
-                  </button>
-                </div>
-              </div>
-
-              <textarea
-                rows={4}
-                value={prepData.jdText}
-                onChange={(e) =>
-                  setPrepData((p) => ({ ...p, jdText: e.target.value }))
-                }
-                onPaste={handleJdPaste}
-                placeholder="直接粘贴目标职位的 Job Description（支持自动识别提取公司名称、职位 Title 与技术栈关键词）..."
-                className="w-full rounded-lg border border-border/30 bg-background/60 p-2.5 text-xs text-foreground focus:border-primary/50 focus:outline-none"
-              />
-
-              {/* Detected tech stack badges */}
-              {detectedSkills.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                  <span className="text-[10px] font-semibold text-primary shrink-0">💡 智能提取技术栈:</span>
-                  {detectedSkills.map((sk) => (
-                    <span
-                      key={sk}
-                      className="rounded border border-primary/30 bg-primary/10 px-1.5 py-0.2 text-[10px] font-medium text-primary"
-                    >
-                      {sk}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Right: Jonathan's JD Analyzer & Hiring Manager Psyche */}
-          <div className="lg:col-span-5 flex flex-col space-y-3 rounded-xl border border-border/30 bg-card/30 p-4 max-h-[640px] overflow-y-auto">
-            {/* Top: Match Radar */}
-            <div className="space-y-2.5">
+          {/* 🌟 Centerpiece: Prominent Hero Action Button */}
+          <div className="rounded-xl border border-primary/40 bg-gradient-to-r from-primary/15 via-primary/10 to-primary/20 p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2.5 flex-wrap">
+                <span className="text-sm font-bold text-foreground">🎯 JD × 简历 智能对齐引擎已就绪</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
+                  jdAnalysis.score >= 70
+                    ? "bg-success/20 text-success border-success/30"
+                    : "bg-primary/20 text-primary border-primary/30"
+                }`}>
+                  匹配度 {jdAnalysis.score}%
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                一键生成：胜任力频次雷达 · 招聘经理心理透视 · 3-Tier 高频押题库 · 匹配专属 HEALER 故事小抄
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerateFullJdQuestionSet}
+              className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-500 px-6 py-3 text-xs font-extrabold text-white shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <Sparkles className="h-4 w-4 animate-pulse" />
+              ✨ 一键智能诊断 & 生成全套押题 →
+            </button>
+          </div>
+
+          {/* Bottom Insights: Match Radar & Hiring Manager Psyche (Side-by-Side) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Left: 📊 简历 × JD 关键词雷达 */}
+            <div className="flex flex-col space-y-2.5 rounded-xl border border-border/30 bg-card/30 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
@@ -1207,7 +1216,7 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
               </div>
             </div>
 
-            {/* Hiring Manager Psyche Card */}
+            {/* Right: 🎯 招聘经理心理透视 & 核心痛点 */}
             {jdDeepAnalysis && (
               <div className="rounded-xl border border-primary/25 bg-background/50 p-3 space-y-2">
                 <div
@@ -1277,31 +1286,10 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                 )}
               </div>
             )}
-
-            {/* Bottom Actions: JD to Questions Engine */}
-            <div className="space-y-2 pt-1">
-              <button
-                type="button"
-                onClick={handleGenerateFullJdQuestionSet}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/80 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-95 transition-all cursor-pointer"
-              >
-                <Sparkles className="h-4 w-4" />
-                ✨ 一键生成全套押题 (JD 转面试问题神器) →
-              </button>
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
-                <span>包含: 🟢 必考通用题 · 🔵 JD胜任力定制题 · 🔴 避坑红旗题</span>
-                <button
-                  type="button"
-                  onClick={handleGenerateJdQuestions}
-                  className="text-primary hover:underline cursor-pointer"
-                >
-                  仅补入 2 道缺口题
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
+
 
       {/* ════════════════════════════════════════════════════════════════
           SUB-TAB 2: QUESTION BANK & STAR 4-BOX CHEAT CARD BUILDER
