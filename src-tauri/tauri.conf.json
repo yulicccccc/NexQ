@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "NexQ",
-  "version": "2.36.1",
+  "version": "2.36.2",
   "identifier": "com.nexq.app",
   "build": {
     "beforeDevCommand": "node scripts/fetch-onnxruntime.mjs && npm run dev",
@@ -83,5 +83,12 @@
       }
     }
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMzM0VGQzk0QTQwN0UyOUEKUldTYTRnZWtsUHcrTXcxenlTdlRkZGVtWEgwVUZlMmZxOWRzNktwWGZFeWxCVGY5R2Jycml2bFIK",
+      "endpoints": [
+        "https://github.com/naxhq/NexQ/releases/latest/download/latest.json"
+      ]
+    }
+  }
 }
