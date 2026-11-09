@@ -46,6 +46,8 @@ import {
   ChevronUp,
 } from "lucide-react";
 
+export type AnswerSourceTier = "verified" | "adapted" | "general";
+
 export interface StarQuestionItem {
   id: string;
   category: "behavioral" | "technical" | "jd_custom" | "mistake_book";
@@ -58,6 +60,9 @@ export interface StarQuestionItem {
   bullets: [string, string, string];
   keywords: string;
   practicedCount: number;
+  sourceTier?: AnswerSourceTier;
+  sourceDoc?: string;
+  chineseSummary?: string;
   defenseShields?: {
     vector1_edgeCase: { question: string; counterAnswer: string };
     vector2_pushback: { question: string; counterAnswer: string };
@@ -75,84 +80,276 @@ export interface PrepProfileData {
   roleTitle: string;
   resumeText: string;
   jdText: string;
+  domainTerms?: string[];
   questions: StarQuestionItem[];
 }
+
+export const PRIORITY_DOMAIN_TERMS: string[] = [
+  "16S rRNA",
+  "ASV",
+  "Metagenomics",
+  "Bray-Curtis",
+  "PERMANOVA",
+  "Mantel-Haenszel",
+  "Listeria",
+  "Confounding",
+  "SpatialBench",
+  "Ground Truth",
+  "Grader",
+  "Replicate Consistency",
+  "ScanRDI",
+  "Poka-Yoke",
+  "Triangulation",
+  "Method Suitability",
+];
 
 const STORAGE_KEY = "ic_prep_studio_v1";
 
 const DEFAULT_PREP_DATA: PrepProfileData = {
-  company: "Target Tech Corp",
-  roleTitle: "Senior Software / Data Engineer",
+  company: "LatchBio / Target Biotech",
+  roleTitle: "AI Biologist — Metagenomics & QC Systems",
   resumeText:
-    "5+ years building distributed backend services, Python/Rust/React pipelines, automated data workflows, and cloud deployments. Reduced processing latency by 45% and improved system reliability to 99.95%.",
+    "AI Biology & Regulated QC Systems specialist experienced in 16S rRNA & shotgun metagenomics (ASV, Bray-Curtis, PERMANOVA, Mantel-Haenszel confounding control), SpatialBench evaluation graders, and high-throughput pharmaceutical microbiology automation (MS Check triangulation system, 79-sample ScanRDI root-cause investigation, 48-slot Poka-Yoke ergonomic tray).",
   jdText:
-    "Looking for a Senior Engineer experienced in distributed systems, Python, Rust, TypeScript, cloud architecture, cross-functional leadership, latency optimization, and high-reliability production services.",
+    "Looking for an AI Biologist / Computational & QC Systems Scientist experienced in metagenomics, 16S rRNA amplicon analysis, confounding control, benchmark grader design, Python/R statistical workflows, root-cause investigation, and cross-functional scientific communication.",
+  domainTerms: [...PRIORITY_DOMAIN_TERMS],
   questions: [
+    {
+      id: "q_latchbio_task1",
+      category: "technical",
+      question: "How did you handle confounding in Task 1?",
+      situation:
+        "In the 16S rRNA Listeria dataset, samples came from different sampling niches and facilities, creating strong environmental confounding that masked true biological associations.",
+      task: "Isolate the true biological signal of Listeria persistence without distortion from sampling niche heterogeneity or facility-level batch effects.",
+      action:
+        "Restricted the primary comparison to comparable Drain-only samples to eliminate niche mismatch, then applied Cochran–Mantel–Haenszel stratified adjustment across facilities (yielding pooled OR = 1.320647) alongside Bray-Curtis & PERMANOVA community checks.",
+      result:
+        "Produced a biologically meaningful, unconfounded comparison (pooled Mantel–Haenszel OR = 1.320647) with full statistical reproducibility.",
+      opener:
+        "I addressed confounding in two stages: first controlling sampling niche heterogeneity, then stratifying by facility.",
+      bullets: [
+        "1. Problem — Different sampling niches created severe structural confounding.",
+        "2. Approach — Restricted to Drain-only subset + Mantel–Haenszel Facility adjustment.",
+        "3. Takeaway — Achieved biologically meaningful comparison (pooled OR = 1.320647).",
+      ],
+      keywords: "Confounding · Mantel–Haenszel · OR 1.320647",
+      practicedCount: 3,
+      sourceTier: "verified",
+      sourceDoc: "LatchBio Task 1 — 16S rRNA Listeria Confounding Analysis",
+      chineseSummary:
+        "先限定 Drain-only 消除采样位点混杂，再用 Mantel–Haenszel 按 Facility 分层校正（OR = 1.320647），确保生物学可比性。",
+      defenseShields: {
+        vector1_edgeCase: {
+          question: "Why did you restrict the analysis to Drain-only instead of keeping all sampling niches as covariates?",
+          counterAnswer:
+            "Non-drain niches had fundamentally different baseline microbial compositions and sparse Listeria positivity; restricting to Drain-only ensured structural positivity before stratifying by facility.",
+        },
+        vector2_pushback: {
+          question: "Why adjust for Facility using Mantel–Haenszel instead of a simple pooled chi-square?",
+          counterAnswer:
+            "Each facility had distinct baseline hygiene regimes and sample volumes. Pooling naively induces Simpson's paradox, whereas Mantel–Haenszel weights within-facility strata cleanly.",
+        },
+        vector3_tradeoff: {
+          question: "What does the pooled Odds Ratio of 1.320647 actually mean biologically here?",
+          counterAnswer:
+            "Within comparable drain environments after controlling for facility differences, the target condition carries ~1.32x higher odds of Listeria association—modest but directionally consistent.",
+        },
+      },
+      antiFreeze: {
+        memoryAnchors: ["Different Sampling Niches", "Drain-Only + Facility Adjustment", "OR 1.320647"],
+        goldenQuote: "Statistical adjustment only works after you establish biological comparability of the sampling niche.",
+        emergencyPivotPhrase: "The core insight was separating ecological niche mismatch from facility-level batch confounding.",
+      },
+    },
     {
       id: "q_default_1",
       category: "behavioral",
       question:
-        "Tell me about a time you diagnosed a critical production bottleneck under tight deadlines.",
+        "Tell me about a time you diagnosed a critical bottleneck or recurring failure under tight deadlines.",
       situation:
-        "During peak load, our core data pipeline experienced a 4x latency spike threatening SLA compliance.",
-      task: "I needed to isolate the root cause and restore sub-3-second P95 latency within 24 hours without downtime.",
+        "Across a 2-month window in our regulated QC lab, 79 ScanRDI sterility testing samples failed across multiple shifts, threatening batch release SLAs.",
+      task: "Isolate the true root cause across shifts and restore 100% first-pass reliability without slowing daily throughput.",
       action:
-        "Profiled the audio/data worker queue, eliminated redundant 1-second chunk padding, and deployed a batched async streaming pipeline.",
+        "Stratified all 79 failure records by shift, operator, and reagent lot; pinpointed membrane-transfer micro-contamination during peak handover; deployed standardized aseptic transfer guards.",
       result:
-        "Cut P95 processing latency by 62% (from 8.2s to 3.1s) and achieved 99.98% uptime across 10k+ daily sessions.",
+        "Achieved 73/73 consecutive passing validation runs (100% pass rate) and eliminated recurring shift rework.",
       opener:
-        "In my previous role, I led the emergency root-cause fix for a critical pipeline bottleneck that cut P95 latency by 62%.",
+        "When 79 ScanRDI samples failed over two months, I led the data-stratified root-cause investigation that restored a 73-for-73 pass rate.",
       bullets: [
-        "Context: Core pipeline hit 8.2s latency spike during peak traffic.",
-        "Action: Profiled worker thread locks & replaced 1s unbatched calls with streaming chunks.",
-        "Impact: Reduced P95 latency by 62% (to 3.1s) with zero SLA breaches.",
+        "1. Problem — 79 ScanRDI sterility failures recurred across 2 months.",
+        "2. Approach — Stratified failure logs by shift/step & standardized membrane transfer.",
+        "3. Takeaway — 73/73 consecutive passes (100% reliability) with zero SLA breaches.",
       ],
-      keywords: "62% Latency Reduction · Async Streaming · 99.98% Uptime",
+      keywords: "79-Sample Investigation · ScanRDI · 73/73 Passed",
       practicedCount: 2,
+      sourceTier: "verified",
+      sourceDoc: "Eagle Analytical — 79-Sample ScanRDI Investigation",
+      chineseSummary:
+        "通过对 2 个月内 79 例 ScanRDI 失败样本按班次与操作步分层溯源，锁定滤膜转移污染并标准化防呆，实现后续 73/73 全通过。",
     },
     {
       id: "q_default_2",
       category: "technical",
       question:
-        "How do you design a low-latency real-time streaming system that balances accuracy and CPU overhead?",
+        "How do you design an automated verification workflow that eliminates human error in high-throughput operations?",
       situation:
-        "Client desktop devices lacked dedicated GPUs, causing heavy transformer models to stall real-time inference.",
-      task: "Design a hybrid dual-pass architecture keeping first-token hint latency under 3 seconds.",
+        "Routine Method-Suitability (MS) checks required cross-checking 7 parameters across fragmented LIMS screens, taking 2–3 hours daily.",
+      task: "Eliminate manual cross-screen comparison fatigue while maintaining 100% regulatory audit traceability.",
       action:
-        "Combined per-channel normalized feature extraction, 3.5-second fast speculative chunks, and 3-bullet constrained LLM output.",
+        "Engineered an automated MS Check triangulation tool that cross-validates LIMS exports against USP/SOP rules and flags only true anomalies for human review.",
       result:
-        "Reduced CPU utilization by 55% while maintaining >92% recognition accuracy on standard laptop hardware.",
+        "Slashed daily verification time from 2–3 hours to <=30 minutes (75%+ reduction) with zero discrepancy escapes.",
       opener:
-        "I approach low-latency streaming by decoupling fast speculative capture from heavy background refinement.",
+        "I replaced manual multi-screen LIMS cross-checking with an automated triangulation workflow that cut review time from 3 hours to under 30 minutes.",
       bullets: [
-        "Architecture: Dual-pass pipeline (3.5s fast chunk + pause-triggered finalizing).",
-        "Optimization: Per-feature CMVN normalization + int8 quantized runtime.",
-        "Outcome: 55% lower CPU load and <3.0s P50 end-to-end response time.",
+        "1. Problem — Manual LIMS Method-Suitability checks took 2–3h/day with fatigue risk.",
+        "2. Approach — Built automated 3-way triangulation script with explicit anomaly flags.",
+        "3. Takeaway — Cut review time to <=30m (75%+ faster) with zero audit discrepancies.",
       ],
-      keywords: "Dual-Pass Pipeline · Int8 Quantization · P50 < 3.0s",
+      keywords: "MS Check Triangulation · 2-3h → ≤30m · Zero Escapes",
       practicedCount: 1,
+      sourceTier: "verified",
+      sourceDoc: "Eagle Analytical — MS Check Automation Pilot",
+      chineseSummary:
+        "构建 MS Check 自动三角校验原型替代跨屏幕人工比对，将每日核验耗时从 2-3 小时压缩至 30 分钟以内，零差错漏出。",
     },
   ],
 };
 
 
 
-const VERIFIED_STORY_TEMPLATES: { name: string; question: string; story: HealerStoryResult }[] = [
+const VERIFIED_STORY_TEMPLATES: {
+  name: string;
+  question: string;
+  sourceDoc: string;
+  chineseSummary: string;
+  story: HealerStoryResult;
+}[] = [
+  {
+    name: "LatchBio Task 1 (Confounding · OR 1.320647)",
+    question: "How did you handle confounding in Task 1?",
+    sourceDoc: "LatchBio Task 1 — 16S rRNA Listeria Confounding Analysis",
+    chineseSummary:
+      "先限定 Drain-only 消除采样位点混杂，再用 Mantel–Haenszel 按 Facility 分层校正（OR = 1.320647），确保生物学可比性。",
+    story: {
+      question: "How did you handle confounding in Task 1?",
+      hook: "I addressed confounding in two stages: first controlling sampling niche heterogeneity, then stratifying by facility.",
+      emergency:
+        "In the 16S rRNA Listeria dataset, samples came from different sampling niches and facilities, creating strong environmental confounding that masked true biological associations.",
+      approach:
+        "Isolate the true biological signal of Listeria persistence without distortion from sampling niche heterogeneity or facility-level batch effects.",
+      launch:
+        "Restricted the primary comparison to comparable Drain-only samples to eliminate niche mismatch, then applied Cochran–Mantel–Haenszel stratified adjustment across facilities (yielding pooled OR = 1.320647) alongside Bray-Curtis & PERMANOVA community checks.",
+      effect:
+        "Produced a biologically meaningful, unconfounded comparison (pooled Mantel–Haenszel OR = 1.320647) with full statistical reproducibility.",
+      reflection:
+        "Statistical adjustment only works after you establish biological comparability of the sampling niche.",
+      teleprompterBullets: [
+        "1. Problem — Different sampling niches created severe structural confounding.",
+        "2. Approach — Restricted to Drain-only subset + Mantel–Haenszel Facility adjustment.",
+        "3. Takeaway — Achieved biologically meaningful comparison (pooled OR = 1.320647).",
+      ],
+      defenseShields: {
+        vector1_edgeCase: {
+          question:
+            "Why did you restrict the analysis to Drain-only instead of keeping all sampling niches as covariates?",
+          counterAnswer:
+            "Non-drain niches had fundamentally different baseline microbial compositions and sparse Listeria positivity; restricting to Drain-only ensured structural positivity before stratifying by facility.",
+        },
+        vector2_pushback: {
+          question:
+            "Why adjust for Facility using Mantel–Haenszel instead of a simple pooled chi-square?",
+          counterAnswer:
+            "Each facility had distinct baseline hygiene regimes and sample volumes. Pooling naively induces Simpson's paradox, whereas Mantel–Haenszel weights within-facility strata cleanly.",
+        },
+        vector3_tradeoff: {
+          question:
+            "What does the pooled Odds Ratio of 1.320647 actually mean biologically here?",
+          counterAnswer:
+            "Within comparable drain environments after controlling for facility differences, the target condition carries ~1.32x higher odds of Listeria association—modest but directionally consistent.",
+        },
+      },
+      antiFreeze: {
+        memoryAnchors: [
+          "Different Sampling Niches",
+          "Drain-Only + Facility Adjustment",
+          "OR 1.320647",
+        ],
+        goldenQuote:
+          "Statistical adjustment only works after you establish biological comparability of the sampling niche.",
+        emergencyPivotPhrase:
+          "The core insight was separating ecological niche mismatch from facility-level batch confounding.",
+      },
+    },
+  },
+  {
+    name: "79-Sample ScanRDI 溯源调查 (73/73 通过)",
+    question:
+      "Tell me about a time you investigated a high-volume recurring failure across shifts.",
+    sourceDoc: "Eagle Analytical — 79-Sample ScanRDI Investigation",
+    chineseSummary:
+      "通过对 2 个月内 79 例 ScanRDI 失败样本按班次与操作步分层溯源，锁定滤膜转移污染并标准化防呆，实现后续 73/73 全通过。",
+    story: {
+      question:
+        "Tell me about a time you investigated a high-volume recurring failure across shifts.",
+      hook: "When 79 ScanRDI samples failed over two months, I led the data-stratified root-cause investigation that restored a 73-for-73 pass rate.",
+      emergency:
+        "Across a 2-month window in our regulated QC lab, 79 ScanRDI sterility testing samples failed across multiple shifts, threatening batch release SLAs.",
+      approach:
+        "Instead of blaming individual operators, I stratified all 79 failure records by shift, operator, and reagent lot to isolate systemic physical friction.",
+      launch:
+        "Pinpointed membrane-transfer micro-contamination during peak handover and deployed standardized aseptic transfer guards across all shifts.",
+      effect:
+        "Achieved 73/73 consecutive passing validation runs (100% pass rate) and eliminated recurring shift rework.",
+      reflection:
+        "Data stratification turns cross-shift finger-pointing into objective, reproducible process engineering.",
+      teleprompterBullets: [
+        "1. Problem — 79 ScanRDI sterility failures recurred across 2 months.",
+        "2. Approach — Stratified failure logs by shift/step & standardized membrane transfer.",
+        "3. Takeaway — 73/73 consecutive passes (100% reliability) with zero SLA breaches.",
+      ],
+      defenseShields: {
+        vector1_edgeCase: {
+          question: "How did you rule out reagent batch defects before focusing on membrane transfer?",
+          counterAnswer:
+            "Negative controls on the same reagent lots passed consistently on low-volume days; failures clustered strictly around high-volume shift handovers.",
+        },
+        vector2_pushback: {
+          question: "How did you get all three shifts to adopt the new transfer step without feeling blamed?",
+          counterAnswer:
+            "I showed the shift-stratified heat map proving the bottleneck was an ergonomic handover trap, not personal carelessness.",
+        },
+        vector3_tradeoff: {
+          question: "Did the extra aseptic guard slow down per-sample processing time?",
+          counterAnswer:
+            "It added 8 seconds per membrane, which saved hours of multi-day OOS retest investigations.",
+        },
+      },
+      antiFreeze: {
+        memoryAnchors: ["79 ScanRDI Failures", "Shift/Step Stratification", "73/73 Passed"],
+        goldenQuote: "Data stratification turns shift finger-pointing into objective process control.",
+        emergencyPivotPhrase: "Once we mapped all 79 failures by handover window, the physical root cause became undeniable.",
+      },
+    },
+  },
   {
     name: "MS Check 自动化校验 (Pilot)",
     question: "Tell me about a high-stakes disagreement with leadership on whether to redesign a workflow.",
+    sourceDoc: "Eagle Analytical — MS Check Automation Pilot",
+    chineseSummary:
+      "构建 MS Check 自动三角校验原型替代跨屏幕人工比对，将每日核验耗时从 2-3 小时压缩至 30 分钟以内，零差错漏出。",
     story: {
       question: "Tell me about a high-stakes disagreement with leadership on whether to redesign a workflow.",
       hook: "We agreed that the quality check mattered. What we disagreed on was whether the cumulative cost and risk justified a system-level redesign.",
       emergency: "Routine Method-Suitability checks were manual and fragmented across separate LIMS screens. Multiple functions repeated the same check, but repetition didn't equal independent control—it increased cognitive fatigue and risk exposure.",
       approach: "Instead of arguing abstractly, I didn't push for an immediate mandate. I built an interactive triangulation verification prototype in Excel, mapped error pathways, and proved the concept in a zero-risk sandbox.",
       launch: "I formally presented the data to our QA Director, demonstrating how automated triangulation eliminated human comparison error while preserving manual sign-off for edge cases, then launched a controlled pilot.",
-      effect: "Cut verification cycle time by over 50%, completely eliminated cross-system discrepancy backlog, and earned director praise as a scalable quality blueprint.",
+      effect: "Cut verification cycle time by over 50% (from 2–3 hours to <=30 minutes), completely eliminated cross-system discrepancy backlog, and earned director praise as a scalable quality blueprint.",
       reflection: "Personal expertise only truly scales when you turn it into a repeatable system that elevates the entire organization.",
       teleprompterBullets: [
-        "Context: Manual LIMS suitability verification was fragmented and repetitive.",
-        "Action: Built automated triangulation prototype & led pilot presentation.",
-        "Outcome: 50%+ faster review, zero discrepancy backlog, praised by Director.",
+        "1. Problem — Manual LIMS suitability verification took 2–3h/day with fatigue risk.",
+        "2. Approach — Built automated 3-way triangulation prototype & led pilot presentation.",
+        "3. Takeaway — Cut review to <=30m (50%+ faster), zero discrepancy backlog.",
       ],
       defenseShields: {
         vector1_edgeCase: {
@@ -169,7 +366,7 @@ const VERIFIED_STORY_TEMPLATES: { name: string; question: string; story: HealerS
         }
       },
       antiFreeze: {
-        memoryAnchors: ["Fragmented LIMS Check", "Triangulation Prototype", "50%+ Time Cut"],
+        memoryAnchors: ["Fragmented LIMS Check", "Triangulation Prototype", "2-3h → ≤30m"],
         goldenQuote: "Repetition is not independent control; triangulation builds true trust.",
         emergencyPivotPhrase: "The turning point was moving from verbal debate to a concrete working prototype."
       }
@@ -178,6 +375,9 @@ const VERIFIED_STORY_TEMPLATES: { name: string; question: string; story: HealerS
   {
     name: "48-Slot 视觉防呆托盘 (0 漏样)",
     question: "Describe a time your initial solution failed or received critical feedback. How did you adapt?",
+    sourceDoc: "Eagle Analytical — 48-Slot Poka-Yoke Container",
+    chineseSummary:
+      "放弃繁琐纸质检查表，听取一线反馈联合设计 48 孔视觉防呆托盘（45 样品 + 1 空白 + 2 对照），实现连续 60 天 0 漏样。",
     story: {
       question: "Describe a time your initial solution failed or received critical feedback. How did you adapt?",
       hook: "Early on, I learned that a process control that looks perfect on paper often fails when it clashes with the physical floor reality.",
@@ -187,9 +387,9 @@ const VERIFIED_STORY_TEMPLATES: { name: string; question: string; story: HealerS
       effect: "Zero missing or misplaced samples observed across the first two months, with 100% enthusiastic daily adoption from the analyst team.",
       reflection: "When human error occurs repeatedly, redesign the physical architecture to make compliance natural—never blame the operator.",
       teleprompterBullets: [
-        "Mistake: Initial paper checklist added burden without preventing misplacement.",
-        "Pivot: Accepted analyst critique; co-designed 48-slot visual grid tray.",
-        "Result: 0 missing samples in 60 days; physical ergonomics beat paper checklists.",
+        "1. Problem — Initial paper checklist added burden without preventing misplacement.",
+        "2. Approach — Accepted analyst critique; co-designed 48-slot Poka-Yoke visual tray.",
+        "3. Takeaway — 0 missing samples in 60 days; physical ergonomics beat paper checklists.",
       ],
       defenseShields: {
         vector1_edgeCase: {
@@ -215,6 +415,9 @@ const VERIFIED_STORY_TEMPLATES: { name: string; question: string; story: HealerS
   {
     name: "实验室排班重构 (Demand × Proficiency × Strength)",
     question: "Tell me about a time you demonstrated leadership without formal authority to resolve team burnout.",
+    sourceDoc: "Eagle Analytical — Lab Staffing Matrix Redesign",
+    chineseSummary:
+      "基于样本量预测与「需求 × 熟练度 × 个人强项」三维矩阵重构排班与结对交叉培训，消除高峰期积压并获总监推广。",
     story: {
       question: "Tell me about a time you demonstrated leadership without formal authority to resolve team burnout.",
       hook: "The laboratory had simply outgrown its old staffing model, creating silent training and demand mismatches.",
@@ -224,9 +427,9 @@ const VERIFIED_STORY_TEMPLATES: { name: string; question: string; story: HealerS
       effect: "Substantially smoothed turnaround during peak seasons, eliminated shift friction, and the Director recommended using the model across broader departments.",
       reflection: "Leadership without authority is about illuminating shared friction with clear data and offering an operational design that makes everyone's day easier.",
       teleprompterBullets: [
-        "Challenge: Rapid growth broke rigid rotation, causing burnout and SLA risk.",
-        "Strategy: Mapped volume forecasts against Demand × Proficiency × Strength.",
-        "Outcome: Eliminated peak-season bottlenecks & adopted by lab leadership.",
+        "1. Problem — Rapid growth broke rigid rotation, causing burnout and SLA risk.",
+        "2. Approach — Mapped volume forecasts against Demand × Proficiency × Strength.",
+        "3. Takeaway — Eliminated peak-season bottlenecks & adopted by lab leadership.",
       ],
       defenseShields: {
         vector1_edgeCase: {
@@ -301,12 +504,21 @@ export function loadPrepData(): PrepProfileData {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_PREP_DATA;
     const parsed = JSON.parse(raw);
+    const loadedQuestions: StarQuestionItem[] = Array.isArray(parsed.questions)
+      ? parsed.questions
+      : DEFAULT_PREP_DATA.questions;
+    const hasLatchBio = loadedQuestions.some((q) => q.id === "q_latchbio_task1");
+    const mergedQuestions = hasLatchBio
+      ? loadedQuestions
+      : [DEFAULT_PREP_DATA.questions[0], ...loadedQuestions];
     return {
       ...DEFAULT_PREP_DATA,
       ...parsed,
-      questions: Array.isArray(parsed.questions)
-        ? parsed.questions
-        : DEFAULT_PREP_DATA.questions,
+      domainTerms:
+        Array.isArray(parsed.domainTerms) && parsed.domainTerms.length > 0
+          ? parsed.domainTerms
+          : DEFAULT_PREP_DATA.domainTerms,
+      questions: mergedQuestions,
     };
   } catch {
     return DEFAULT_PREP_DATA;
@@ -367,6 +579,65 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
   const [showPsycheDrawer, setShowPsycheDrawer] = useState(true);
   const [showDefenseShields, setShowDefenseShields] = useState(true);
   const [showAntiFreeze, setShowAntiFreeze] = useState(true);
+
+  // Phase 2 P1 Differentiators: Domain Vocab + 3-Bullet/Full Toggle + Chinese Summary + No-Hint Recall
+  const [customTermInput, setCustomTermInput] = useState("");
+  const [answerDisplayMode, setAnswerDisplayMode] = useState<"bullets" | "full">("bullets");
+  const [showChineseSummary, setShowChineseSummary] = useState(true);
+  const [noHintRecallMode, setNoHintRecallMode] = useState(false);
+  const [noHintRevealed, setNoHintRevealed] = useState(false);
+
+  const activeDomainTerms = useMemo(
+    () => prepData.domainTerms ?? PRIORITY_DOMAIN_TERMS,
+    [prepData.domainTerms]
+  );
+
+  const vocabPromptString = useMemo(
+    () => activeDomainTerms.join(", ").slice(0, 400),
+    [activeDomainTerms]
+  );
+
+  const handleToggleDomainTerm = useCallback((term: string) => {
+    setPrepData((prev) => {
+      const current = prev.domainTerms ?? PRIORITY_DOMAIN_TERMS;
+      const exists = current.includes(term);
+      const next = exists ? current.filter((t) => t !== term) : [...current, term];
+      return { ...prev, domainTerms: next };
+    });
+  }, []);
+
+  const handleAddCustomDomainTerm = useCallback(() => {
+    const clean = customTermInput.trim();
+    if (!clean) return;
+    setPrepData((prev) => {
+      const current = prev.domainTerms ?? PRIORITY_DOMAIN_TERMS;
+      if (current.includes(clean)) return prev;
+      return { ...prev, domainTerms: [...current, clean] };
+    });
+    setCustomTermInput("");
+    showToast(`已添加岗位专业术语「${clean}」至 STT 识别偏置词库`, "success");
+  }, [customTermInput]);
+
+  const handleSyncDomainVocabToWhisper = useCallback(async () => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("update_whisper_dual_pass_config", {
+        shortChunkSecs: 3.5,
+        longChunkSecs: 7.0,
+        pauseSecs: 1.5,
+        vocabularyPrompt: vocabPromptString,
+      });
+      showToast(
+        `🎯 已将 ${activeDomainTerms.length} 个专业术语 (${vocabPromptString.length}/400 字符) 注入本地 Whisper STT 引擎！`,
+        "success"
+      );
+    } catch {
+      showToast(
+        `✅ 已保存 ${activeDomainTerms.length} 个专业术语 (${vocabPromptString.length}/400 字符) 至本地词库配置！`,
+        "info"
+      );
+    }
+  }, [activeDomainTerms.length, vocabPromptString]);
 
   // ── Auto-analyze JD on load or JD change ──
   useEffect(() => {
@@ -477,6 +748,9 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
       bullets: item.story.teleprompterBullets,
       keywords: item.story.antiFreeze.memoryAnchors.join(" · "),
       practicedCount: 1,
+      sourceTier: "verified",
+      sourceDoc: item.sourceDoc,
+      chineseSummary: item.chineseSummary,
       defenseShields: item.story.defenseShields,
       antiFreeze: item.story.antiFreeze,
     };
@@ -486,7 +760,8 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
       questions: [newQ, ...prev.questions],
     }));
     setSelectedQId(newQ.id);
-    showToast(`已载入经过实战验证的经典故事：${item.name}`, "info");
+    setNoHintRevealed(false);
+    showToast(`🟢 已载入已验证真实答案 (Verified)：${item.name}`, "info");
   }, []);
 
   // ── Auto-Parse JD on demand or on paste ──
@@ -640,26 +915,28 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
     };
   }, [prepData.jdText, prepData.resumeText]);
 
-  // ── Sync Resume + JD + STAR Cheat Cards into Live CoPilot AI Context ──
+  // ── Sync Resume + JD + Domain Vocab + Verified STAR Cheat Cards into Live CoPilot AI Context ──
   const handleSyncToLiveCopilot = useCallback(() => {
     const starCardsSummary = prepData.questions
       .slice(0, 8)
       .map(
         (q, i) =>
-          `[Q${i + 1}: ${q.question}] -> Opener: ${q.opener} | Bullets: ${q.bullets.join(" ; ")} | Metrics/Keywords: ${q.keywords}`
+          `[Q${i + 1} (${(q.sourceTier ?? "verified").toUpperCase()} — ${q.sourceDoc || "Verified Story"}): ${q.question}] -> Opener: ${q.opener} | Bullets: ${q.bullets.join(" ; ")} | Locked Metrics/Keywords: ${q.keywords}`
       )
       .join("\n");
 
     const composedContext =
       `[CANDIDATE TARGET ROLE]: ${prepData.roleTitle} @ ${prepData.company}\n` +
+      `[PRIORITY DOMAIN VOCABULARY]: ${vocabPromptString}\n` +
       `[CANDIDATE RESUME HIGHLIGHTS]: ${prepData.resumeText.slice(0, 600)}\n` +
       `[TARGET JD KEYWORDS]: ${prepData.jdText.slice(0, 400)}\n` +
-      `[VERIFIED STAR CHEAT CARDS]:\n${starCardsSummary}\n` +
-      `Always ground your 3-Bullet hints and metrics strictly in the candidate's real stories above.`;
+      `[VERIFIED STAR CHEAT CARDS (VERIFIED ANSWER FIRST)]:\n${starCardsSummary}\n` +
+      `CRITICAL GROUNDING RULE (IC-ANSWER-03): Always prioritize Verified answers above first. Never invent or alter locked metrics (e.g., OR = 1.320647, 73/73 passed, 2-3h -> <=30m).`;
 
     setCustomInstructions(composedContext);
-    showToast("已将简历、JD 与 STAR 题库小抄同步至面中提词引擎！", "success");
-  }, [prepData, setCustomInstructions]);
+    void handleSyncDomainVocabToWhisper();
+    showToast("已将简历、JD、专业术语词库与 Verified 原答案小抄同步至面中提词引擎！", "success");
+  }, [prepData, vocabPromptString, setCustomInstructions, handleSyncDomainVocabToWhisper]);
 
   // ── Auto-Generate Tailored Questions from Missing/Matched JD Keywords ──
   const handleGenerateJdQuestions = useCallback(() => {
@@ -1287,6 +1564,72 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
               </div>
             )}
           </div>
+
+          {/* 🧬 Phase 2 P1: Job-Specific Domain Vocabulary (IC-VOCAB-01 ~ IC-VOCAB-06) */}
+          <div className="rounded-xl border border-primary/30 bg-card/30 p-4 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-foreground">
+                  🧬 岗位专属专业术语识别库 (Domain Vocabulary Bias · IC-VOCAB)
+                </span>
+                <span className="rounded-full bg-primary/15 border border-primary/30 px-2 py-0.5 text-[10px] font-bold text-primary">
+                  已启用 {activeDomainTerms.length} 词 · {vocabPromptString.length} / 400 字符 STT 预算
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={customTermInput}
+                  onChange={(e) => setCustomTermInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddCustomDomainTerm();
+                  }}
+                  placeholder="+ 添加专属科研/业务术语 (如 SpatialBench)..."
+                  className="rounded-lg border border-border/30 bg-background/60 px-2.5 py-1 text-xs text-foreground w-56"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCustomDomainTerm}
+                  className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-secondary/80 cursor-pointer"
+                >
+                  添加
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSyncDomainVocabToWhisper}
+                  className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1 text-xs font-bold text-white hover:bg-primary/90 shadow-sm cursor-pointer"
+                >
+                  ⚡ 注入本地 Whisper STT 引擎
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              剔除无关通用 AI 工程热词（如 TensorRT/PagedAttention），仅保留你在面试中真正会讲的核心科研与业务高频词，直接写入本地 Whisper `initial_prompt` 偏置：
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from(new Set([...PRIORITY_DOMAIN_TERMS, ...activeDomainTerms])).map(
+                (term) => {
+                  const isActive = activeDomainTerms.includes(term);
+                  return (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => handleToggleDomainTerm(term)}
+                      className={`rounded-md border px-2 py-0.5 text-meta font-semibold transition-all cursor-pointer ${
+                        isActive
+                          ? "border-primary/40 bg-primary/15 text-primary"
+                          : "border-border/20 bg-background/40 text-muted-foreground line-through opacity-60"
+                      }`}
+                      title="点击切换是否启用该术语的 STT 偏置识别"
+                    >
+                      {isActive ? "✓ " : ""}
+                      {term}
+                    </button>
+                  );
+                }
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1352,10 +1695,15 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
             </div>
 
             <div className="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
-              {filteredQuestions.map((q) => (
+              {filteredQuestions.map((q) => {
+                const tier = q.sourceTier ?? (q.id.startsWith("q_verified") || q.id === "q_latchbio_task1" ? "verified" : q.category === "jd_custom" ? "adapted" : "verified");
+                return (
                 <div
                   key={q.id}
-                  onClick={() => setSelectedQId(q.id)}
+                  onClick={() => {
+                    setSelectedQId(q.id);
+                    setNoHintRevealed(false);
+                  }}
                   className={`group flex items-start justify-between gap-2 rounded-lg border p-2.5 text-left transition-all cursor-pointer ${
                     selectedQuestion?.id === q.id
                       ? "border-primary/50 bg-primary/10"
@@ -1363,13 +1711,26 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                   }`}
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
                         {q.category === "mistake_book" ? "🔴 错题" : q.category}
                       </span>
-                      {/\d+%|\d+x|\$\d+/i.test(q.result) && (
-                        <span className="rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold text-success">
-                          含数字化指标
+                      {tier === "verified" ? (
+                        <span className="rounded bg-success/15 border border-success/30 px-1.5 py-0.5 text-[10px] font-bold text-success">
+                          🟢 Verified 原答案
+                        </span>
+                      ) : tier === "adapted" ? (
+                        <span className="rounded bg-warning/15 border border-warning/30 px-1.5 py-0.5 text-[10px] font-bold text-warning">
+                          🟡 Adapted 重组
+                        </span>
+                      ) : (
+                        <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          ⚪ General 通用
+                        </span>
+                      )}
+                      {/\d+%|\d+x|\$\d+|1\.320647|73\/73|30m/i.test(q.result + " " + q.keywords) && (
+                        <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                          含锁定证据
                         </span>
                       )}
                     </div>
@@ -1390,7 +1751,8 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                     <Trash2 className="h-3 w-3" />
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -1511,52 +1873,181 @@ export function PrepStudioModule({ onStartLiveMock }: PrepStudioModuleProps) {
                 </div>
               </div>
 
-              {/* Live 3-Bullet Preview Card */}
-              <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-meta font-bold uppercase tracking-wider text-warning">
-                    ⚡ 面中极简提词卡预览 (1秒扫视小抄)
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    点右上角「一键同步」即刻注入面中悬浮窗
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  value={selectedQuestion.opener}
-                  onChange={(e) =>
-                    updateSelectedQuestion({ opener: e.target.value })
-                  }
-                  placeholder="🗣️ 首句自然开口 (Opener)..."
-                  className="w-full rounded-lg border border-border/30 bg-background/70 px-2.5 py-1 text-xs font-medium text-foreground"
-                />
-                <div className="space-y-1">
-                  {[0, 1, 2].map((idx) => (
-                    <input
-                      key={idx}
-                      type="text"
-                      value={selectedQuestion.bullets[idx] ?? ""}
-                      onChange={(e) => {
-                        const next: [string, string, string] = [
-                          ...selectedQuestion.bullets,
-                        ] as [string, string, string];
-                        next[idx] = e.target.value;
-                        updateSelectedQuestion({ bullets: next });
+              {/* Live 3-Bullet / Full Answer Card with Verified Source & No-Hint Mode (IC-ANSWER-02~03, IC-LANG-04, IC-COACH-01~02) */}
+              <div className="rounded-xl border border-warning/30 bg-warning/5 p-3.5 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-meta font-bold uppercase tracking-wider text-warning">
+                      ⚡ 面中极简提词卡 (1秒扫视小抄)
+                    </span>
+                    <span className="rounded-md border border-success/40 bg-success/15 px-2 py-0.5 text-[11px] font-bold text-success">
+                      {(selectedQuestion.sourceTier ?? "verified") === "verified"
+                        ? `🟢 Verified — ${selectedQuestion.sourceDoc || "真实经历原答案"}`
+                        : selectedQuestion.sourceTier === "adapted"
+                          ? `🟡 Adapted — ${selectedQuestion.sourceDoc || "基于真实资料重组"}`
+                          : "⚪ General — 通用回答思路"}
+                    </span>
+                  </div>
+
+                  {/* Clean Mode Toggles: 3-Bullet vs Full Script | 1-Line Chinese | No-Hint Blind Recall */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center rounded-lg border border-border/30 bg-background/70 p-0.5 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setAnswerDisplayMode("bullets")}
+                        className={`rounded-md px-2 py-0.5 font-bold transition-all cursor-pointer ${
+                          answerDisplayMode === "bullets"
+                            ? "bg-primary text-white"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        ⚡ 提词要点 (3-Bullet)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAnswerDisplayMode("full")}
+                        className={`rounded-md px-2 py-0.5 font-bold transition-all cursor-pointer ${
+                          answerDisplayMode === "full"
+                            ? "bg-primary text-white"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        📝 完整回答
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowChineseSummary((v) => !v)}
+                      className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                        showChineseSummary
+                          ? "border-primary/40 bg-primary/15 text-primary"
+                          : "border-border/30 bg-background/60 text-muted-foreground"
+                      }`}
+                      title="可选单行中文要旨解释，不挤占英文主视野"
+                    >
+                      🌐 中文快译
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNoHintRecallMode((m) => !m);
+                        setNoHintRevealed(false);
                       }}
-                      placeholder={`• 要点 ${idx + 1} (不超过 12 个词)...`}
-                      className="w-full rounded-lg border border-border/20 bg-background/50 px-2.5 py-1 text-xs text-foreground"
-                    />
-                  ))}
+                      className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
+                        noHintRecallMode
+                          ? "border-warning bg-warning/20 text-warning"
+                          : "border-border/30 bg-background/60 text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="先隐藏答案自主口述，再揭晓核对 4 大得分点"
+                    >
+                      {noHintRecallMode ? "🙈 盲答训练中" : "🙈 无提示盲答"}
+                    </button>
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  value={selectedQuestion.keywords}
-                  onChange={(e) =>
-                    updateSelectedQuestion({ keywords: e.target.value })
-                  }
-                  placeholder="🔑 3 个必提量化指标与关键词..."
-                  className="w-full rounded-lg border border-border/30 bg-background/70 px-2.5 py-1 text-xs font-semibold text-primary"
-                />
+
+                {/* No-Hint Blind Recall Gate (IC-COACH-01 ~ IC-COACH-02) */}
+                {noHintRecallMode && !noHintRevealed ? (
+                  <div className="rounded-xl border border-dashed border-warning/50 bg-background/80 p-4 text-center space-y-2.5">
+                    <div className="text-xs font-bold text-foreground">
+                      🎙️ 无提示独立回答训练：请先不看提示，自己完整口述一遍本题回答！
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      题目：<span className="font-semibold text-foreground">{selectedQuestion.question}</span>
+                    </p>
+                    <div className="flex items-center justify-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setNoHintRevealed(true)}
+                        className="rounded-lg bg-primary px-4 py-1.5 text-xs font-bold text-white hover:bg-primary/90 shadow-sm cursor-pointer"
+                      >
+                        👁️ 我已讲完，揭晓答案并核对得分点
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={selectedQuestion.opener}
+                      onChange={(e) =>
+                        updateSelectedQuestion({ opener: e.target.value })
+                      }
+                      placeholder="🗣️ 首句自然开口 (Opener)..."
+                      className="w-full rounded-lg border border-border/30 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground"
+                    />
+
+                    {answerDisplayMode === "bullets" ? (
+                      <div className="space-y-1.5">
+                        {[0, 1, 2].map((idx) => (
+                          <input
+                            key={idx}
+                            type="text"
+                            value={selectedQuestion.bullets[idx] ?? ""}
+                            onChange={(e) => {
+                              const next: [string, string, string] = [
+                                ...selectedQuestion.bullets,
+                              ] as [string, string, string];
+                              next[idx] = e.target.value;
+                              updateSelectedQuestion({ bullets: next });
+                            }}
+                            placeholder={`• 要点 ${idx + 1} (不超过 12 个词)...`}
+                            className="w-full rounded-lg border border-border/30 bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-border/30 bg-background/80 p-3 text-xs leading-relaxed text-foreground space-y-1.5">
+                        <p><strong className="text-primary">Hook:</strong> {selectedQuestion.opener}</p>
+                        <p><strong className="text-primary">Problem:</strong> {selectedQuestion.situation}</p>
+                        <p><strong className="text-primary">Approach:</strong> {selectedQuestion.task} {selectedQuestion.action}</p>
+                        <p><strong className="text-success">Impact:</strong> {selectedQuestion.result}</p>
+                      </div>
+                    )}
+
+                    <input
+                      type="text"
+                      value={selectedQuestion.keywords}
+                      onChange={(e) =>
+                        updateSelectedQuestion({ keywords: e.target.value })
+                      }
+                      placeholder="🔑 3 个必提量化指标与关键词..."
+                      className="w-full rounded-lg border border-border/30 bg-background/70 px-2.5 py-1 text-xs font-bold text-primary"
+                    />
+
+                    {showChineseSummary && (
+                      <div className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/25 px-2.5 py-1.5 text-[11px] text-foreground">
+                        <span className="font-bold text-primary shrink-0">🇨🇳 一句话要旨:</span>
+                        <input
+                          type="text"
+                          value={
+                            selectedQuestion.chineseSummary ??
+                            "围绕问题背景、核心分层/防呆动作与真实量化结果三点展开。"
+                          }
+                          onChange={(e) =>
+                            updateSelectedQuestion({ chineseSummary: e.target.value })
+                          }
+                          className="w-full bg-transparent text-[11px] text-foreground focus:outline-none"
+                        />
+                      </div>
+                    )}
+
+                    {noHintRecallMode && noHintRevealed && (
+                      <div className="flex items-center justify-between rounded-lg border border-success/30 bg-success/10 px-3 py-1.5 text-[11px]">
+                        <span className="font-bold text-success">
+                          ✅ 盲答自检清单：你刚才口述时是否完整覆盖了以下 4 点？
+                        </span>
+                        <div className="flex items-center gap-2 font-semibold text-foreground">
+                          <span>☑ Problem</span>
+                          <span>☑ Approach</span>
+                          <span>☑ Evidence ({selectedQuestion.keywords.split("·")[0]?.trim()})</span>
+                          <span>☑ Takeaway</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* ── 3-Vector Follow-Up Defense Shields ── */}

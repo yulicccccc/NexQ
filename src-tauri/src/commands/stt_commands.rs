@@ -162,26 +162,30 @@ pub async fn update_whisper_dual_pass_config(
     short_chunk_secs: f32,
     long_chunk_secs: f32,
     pause_secs: f32,
+    vocabulary_prompt: Option<String>,
 ) -> Result<(), String> {
     use crate::stt::provider::DualPassConfig;
-
-    let new_config = DualPassConfig {
-        short_chunk_secs: short_chunk_secs.clamp(0.3, 5.0),
-        long_chunk_secs: long_chunk_secs.clamp(1.0, 10.0),
-        pause_secs: pause_secs.clamp(0.3, 5.0),
-    };
 
     // Write to the shared config — WhisperCppSTT reads this on each feed_audio call.
     let config_arc = app.state::<AppState>().whisper_config.clone();
     let result = {
         match config_arc.write() {
             Ok(mut cfg) => {
-                *cfg = new_config;
+                let next_vocab = vocabulary_prompt
+                    .map(|v| v.chars().take(400).collect::<String>())
+                    .unwrap_or_else(|| cfg.vocabulary_prompt.clone());
+                *cfg = DualPassConfig {
+                    short_chunk_secs: short_chunk_secs.clamp(0.3, 5.0),
+                    long_chunk_secs: long_chunk_secs.clamp(1.0, 10.0),
+                    pause_secs: pause_secs.clamp(0.3, 5.0),
+                    vocabulary_prompt: next_vocab,
+                };
                 log::info!(
-                    "Whisper dual-pass config updated: fast={}s, correction={}s, pause={}s",
+                    "Whisper dual-pass config updated: fast={}s, correction={}s, pause={}s, vocab_len={}",
                     cfg.short_chunk_secs,
                     cfg.long_chunk_secs,
-                    cfg.pause_secs
+                    cfg.pause_secs,
+                    cfg.vocabulary_prompt.len()
                 );
                 Ok(())
             }

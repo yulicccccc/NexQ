@@ -86,23 +86,32 @@ pub fn diarized_speaker_id(tag: &str) -> Option<String> {
     Some(format!("speaker_{}", n.checked_sub(1)?))
 }
 
+/// Default domain vocabulary prompt for Whisper context biasing (IC-VOCAB-04).
+pub fn default_vocabulary_prompt() -> String {
+    "16S rRNA, ASV, Metagenomics, Bray-Curtis, PERMANOVA, Mantel-Haenszel, Listeria, Confounding, SpatialBench, Ground Truth, Grader, Replicate Consistency, ScanRDI, Poka-Yoke, Triangulation, Method Suitability, cGMP.".to_string()
+}
+
 /// Runtime configuration for whisper.cpp dual-pass transcription.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DualPassConfig {
-    /// Fast-pass chunk duration in seconds (default 1.0)
+    /// Fast-pass chunk duration in seconds (default 2.5)
     pub short_chunk_secs: f32,
-    /// Correction-pass chunk duration in seconds (default 3.0)
+    /// Correction-pass chunk duration in seconds (default 5.0)
     pub long_chunk_secs: f32,
-    /// Silence duration before finalizing a line (default 1.5)
+    /// Silence duration before finalizing a line (default 1.2)
     pub pause_secs: f32,
+    /// Domain vocabulary initial prompt for Whisper context biasing (IC-VOCAB-04)
+    #[serde(default = "default_vocabulary_prompt")]
+    pub vocabulary_prompt: String,
 }
 
 impl Default for DualPassConfig {
     fn default() -> Self {
         Self {
-            short_chunk_secs: 1.0,
-            long_chunk_secs: 3.0,
-            pause_secs: 1.5,
+            short_chunk_secs: 2.5,
+            long_chunk_secs: 5.0,
+            pause_secs: 1.2,
+            vocabulary_prompt: default_vocabulary_prompt(),
         }
     }
 }

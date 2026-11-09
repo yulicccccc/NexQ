@@ -32,7 +32,8 @@ const MAX_LINE_SECS: f32 = 30.0;
 
 /// Minimum RMS for audio to be considered "speech" (energy gate).
 /// Below this, chunks are accumulated but NOT sent to inference.
-const SPEECH_RMS_THRESHOLD: f64 = 200.0;
+/// Lowered from 200.0 to 55.0 so quiet/far-field laptop mics (RMS 80..180) are captured.
+const SPEECH_RMS_THRESHOLD: f64 = 55.0;
 
 /// Maximum number of pending tasks before we start dropping old fast passes.
 const MAX_QUEUE_SIZE: usize = 6;
@@ -119,6 +120,7 @@ enum InferenceTask {
         fast_words: Vec<String>,
     },
     Finalize {
+        samples: Vec<f32>,
         segment_id: String,
         text: String,
         timestamp_ms: u64,
@@ -204,6 +206,9 @@ pub struct WhisperCppSTT {
     // Word-based pause detection: last time new words were produced
     last_new_content_time: Option<Instant>,
 
+    // Speech-energy timestamp so utterances shorter than short_chunk_secs still flush on pause
+    last_speech_time: Option<Instant>,
+
     // Correction pass throttle
     last_correction_time: Option<Instant>,
 
@@ -233,6 +238,7 @@ impl WhisperCppSTT {
             line_counter: 0,
             has_content_this_line: false,
             last_new_content_time: None,
+            last_speech_time: None,
             last_correction_time: None,
             inference_tx: None,
             inference_thread: None,
@@ -245,7 +251,16 @@ impl WhisperCppSTT {
     }
 
     fn i16_to_f32(samples: &[i16]) -> Vec<f32> {
-        samples.iter().map(|&s| s as f32 / 32768.0).collect()
+        let mut out: Vec<f32> = samples.iter().map(|&s| s as f32 / 32768.0).collect();
+        let peak = out.iter().fold(0.0f32, |m, &v| m.max(v.abs()));
+        // Soft peak normalization for quiet laptop microphones (RMS 60..180)
+        if peak > 0.002 && peak < 0.35 {
+            let gain = (0.50 / peak).min(6.0);
+            for sample in &mut out {
+                *sample = (*sample * gain).clamp(-1.0, 1.0);
+            }
+        }
+        out
     }
 
     fn send_task(&self, task: InferenceTask) {
@@ -278,6 +293,7 @@ impl WhisperCppSTT {
         self.buffer_has_speech = false;
         self.has_content_this_line = false;
         self.last_new_content_time = None;
+        self.last_speech_time = None;
         self.last_correction_time = None;
     }
 }
@@ -322,6 +338,7 @@ impl STTProvider for WhisperCppSTT {
         let model_path = self.model_path.clone();
         let language = self.language.clone();
         let stop_flag = Arc::clone(&self.stop_flag);
+        let config_arc = Arc::clone(&self.config);
         let tx = result_tx.clone();
 
         let thread = std::thread::spawn(move || {
@@ -360,11 +377,15 @@ impl STTProvider for WhisperCppSTT {
 
             let run_whisper = |state: &mut whisper_rs::WhisperState,
                                samples: &[f32],
-                               lang: &str|
+                               lang: &str,
+                               vocab_prompt: &str|
              -> String {
                 let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
                 let lang_code = lang.split('-').next().unwrap_or(lang);
                 params.set_language(Some(lang_code));
+                if !vocab_prompt.trim().is_empty() {
+                    params.set_initial_prompt(vocab_prompt.trim());
+                }
                 params.set_print_special(false);
                 params.set_print_progress(false);
                 params.set_print_realtime(false);
@@ -463,6 +484,11 @@ impl STTProvider for WhisperCppSTT {
                     break;
                 }
 
+                let vocab_prompt = config_arc
+                    .read()
+                    .map(|c| c.vocabulary_prompt.clone())
+                    .unwrap_or_default();
+
                 match ptask.task {
                     InferenceTask::Shutdown => break,
 
@@ -471,7 +497,7 @@ impl STTProvider for WhisperCppSTT {
                         segment_id,
                         timestamp_ms,
                     } => {
-                        let text = run_whisper(&mut state, &samples, &language);
+                        let text = run_whisper(&mut state, &samples, &language, &vocab_prompt);
                         if !text.is_empty() {
                             let _ = fb_tx.send(FastPassFeedback {
                                 text: text.clone(),
@@ -501,7 +527,8 @@ impl STTProvider for WhisperCppSTT {
                         timestamp_ms,
                         fast_words,
                     } => {
-                        let correction_text = run_whisper(&mut state, &samples, &language);
+                        let correction_text =
+                            run_whisper(&mut state, &samples, &language, &vocab_prompt);
                         if correction_text.is_empty() {
                             continue;
                         }
@@ -531,17 +558,31 @@ impl STTProvider for WhisperCppSTT {
                     }
 
                     InferenceTask::Finalize {
+                        samples,
                         segment_id,
                         text,
                         timestamp_ms,
                     } => {
                         last_emitted_text.clear();
 
-                        if !text.is_empty() {
+                        // Full-line transcription at Finalize prevents sentence-tail truncation
+                        let final_text = if samples.len() >= (SAMPLE_RATE as usize / 2) {
+                            let full_text =
+                                run_whisper(&mut state, &samples, &language, &vocab_prompt);
+                            if !full_text.is_empty() {
+                                full_text
+                            } else {
+                                text
+                            }
+                        } else {
+                            text
+                        };
+
+                        if !final_text.is_empty() {
                             let _ = tx.blocking_send(TranscriptResult {
-                                text,
+                                text: final_text,
                                 is_final: true,
-                                confidence: 0.92,
+                                confidence: 0.94,
                                 timestamp_ms,
                                 speaker: None,
                                 language: Some(language.clone()),
@@ -573,6 +614,7 @@ impl STTProvider for WhisperCppSTT {
         self.line_counter = 0;
         self.has_content_this_line = false;
         self.last_new_content_time = None;
+        self.last_speech_time = None;
         self.last_correction_time = None;
 
         log::info!("WhisperCppSTT: Stream started");
@@ -598,6 +640,7 @@ impl STTProvider for WhisperCppSTT {
         // Track if this chunk has speech energy
         if has_speech_energy(&chunk.pcm_data) {
             self.buffer_has_speech = true;
+            self.last_speech_time = Some(Instant::now());
         }
 
         // Accumulate audio
@@ -628,6 +671,32 @@ impl STTProvider for WhisperCppSTT {
                 self.fast_buffer.clear();
             }
             self.buffer_has_speech = false;
+        }
+
+        // ── Short-utterance flush: if < short_samples has speech and user paused for pause_secs ──
+        let short_utterance_paused = self.buffer_has_speech
+            && self.fast_buffer.len() >= (SAMPLE_RATE as usize / 2)
+            && match self.last_speech_time {
+                Some(last) => last.elapsed().as_secs_f32() >= config.pause_secs,
+                None => false,
+            };
+
+        if short_utterance_paused {
+            let samples_i16 = std::mem::take(&mut self.fast_buffer);
+            let samples_f32 = Self::i16_to_f32(&samples_i16);
+            let seg_id = self.current_segment_id();
+
+            self.send_task(InferenceTask::FastPass {
+                samples: samples_f32,
+                segment_id: seg_id,
+                timestamp_ms,
+            });
+
+            self.buffer_has_speech = false;
+            self.has_content_this_line = true;
+            if self.last_new_content_time.is_none() {
+                self.last_new_content_time = self.last_speech_time;
+            }
         }
 
         // ── Word-based pause detection ──
@@ -667,7 +736,7 @@ impl STTProvider for WhisperCppSTT {
 
         // ── Pause detection: finalize when no new words for pause_secs ──
         let should_finalize = self.has_content_this_line
-            && !self.fast_text_this_line.is_empty()
+            && (!self.fast_text_this_line.is_empty() || short_utterance_paused)
             && match self.last_new_content_time {
                 Some(last) => last.elapsed().as_secs_f32() >= config.pause_secs,
                 None => false,
@@ -681,8 +750,10 @@ impl STTProvider for WhisperCppSTT {
 
             let seg_id = self.current_segment_id();
             let text = self.fast_text_this_line.clone();
+            let full_line_samples = Self::i16_to_f32(&self.line_audio);
 
             self.send_task(InferenceTask::Finalize {
+                samples: full_line_samples,
                 segment_id: seg_id,
                 text,
                 timestamp_ms,
